@@ -2,6 +2,10 @@
 
 Acesta este documentul central pentru structura de date a întregului proiect. Îl actualizăm când adăugăm sau schimbăm un tabel. Diagrama se poate vedea în previzualizarea Markdown care suportă Mermaid și direct pe GitHub.
 
+Diagrama există și ca fișiere independente: [imagine PNG](database.png), [imagine SVG](database.svg) și [diagramă editabilă draw.io](database.drawio). Pentru editare, deschide fișierul `.drawio` în draw.io / diagrams.net prin **File → Open From → Device**. Actualizăm diagrama și exporturile când schimbăm structura tabelelor.
+
+![Diagrama structurii propuse pentru baza Netex](database.svg)
+
 - [Inventarul tabelelor](#inventarul-tabelelor)
 - [Diagrama relațiilor](#diagrama-relațiilor)
 - [Tabelul users](#tabelul-users)

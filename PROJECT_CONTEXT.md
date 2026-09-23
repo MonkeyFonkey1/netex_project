@@ -162,6 +162,7 @@ Verificări efectuate pe Windows cu JDK 25.0.1 și Node.js 24.14.1: `mvnw.cmd ve
 - 2026-09-23: pasul 1 a fost implementat: două aplicații Spring Boot pe Java 25, React + TypeScript + Vite, Maven Wrapper, health prin Actuator, proxy și pagină de verificare a conexiunii. Au fost adăugate README și contractul HTTP; buildurile, testele Java, lintul și pornirea separată au fost verificate.
 - 2026-09-23: a început pasul 2 cu PostgreSQL în Docker Compose, volum persistent, configurație locală exclusă din Git și instrucțiuni DBeaver. Containerul a pornit și a trecut verificarea de disponibilitate. Etapa de învățare curentă: conectarea vizuală la baza goală, înainte de Flyway și schema aplicației.
 - 2026-09-23: la cererea candidatului, `docs/database.md` a devenit referința vizuală pentru structura de date a întregului proiect. Au fost documentate diagrama users–contacts, coloanele, regulile și exemplele; sunt diferențiate tabelele propuse, istoricul Flyway și stocarea încă nestabilită a microserviciului. Nu au fost create tabele prin această actualizare de documentație.
+- 2026-09-23: diagrama a fost salvată și în fișiere independente: `docs/database.svg` și `docs/database.png` pentru vizualizare și `docs/database.drawio` pentru editare în draw.io / diagrams.net. XML-ul a fost verificat, iar imaginea PNG a fost randată local din SVG și inspectată vizual. Păstrează aceste fișiere sincronizate cu documentația și cu viitoarele migrări. Starea rămâne schemă propusă.
 
 ## Instrucțiune pentru un alt chat AI
 

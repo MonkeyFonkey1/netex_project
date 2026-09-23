@@ -12,6 +12,9 @@ frontend/          React, TypeScript, Vite
 microservice/      activity-service: Spring Boot, Maven
 docs/API.md        implemented and planned HTTP endpoints
 docs/database.md   table inventory, relationship diagram and DBeaver walkthrough
+docs/database.svg  visual database diagram (proposed schema)
+docs/database.png  image preview of the database diagram
+docs/database.drawio editable database diagram for draw.io / diagrams.net
 compose.yaml       local PostgreSQL container and persistent volume
 PROJECT_CONTEXT.md development decisions and progress (Romanian)
 ```

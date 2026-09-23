@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="910" viewBox="0 0 1440 910" role="img" aria-labelledby="title desc"><title id="title">Netex — diagrama bazei de date propuse</title><desc id="desc">Un utilizator poate crea zero sau mai multe contacte. contacts.created_by_user_id face referire la users.id. Tabelele nu sunt încă implementate.</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#137c73"/></marker></defs><rect width="1440" height="910" fill="#f5f8fa"/><g font-family="Arial, sans-serif">
+<text x="60" y="52" font-size="15" fill="#137c73" font-weight="bold">NETEX / STRUCTURA DATELOR</text>
+<text x="60" y="101" font-size="36" fill="#183642" font-weight="bold">Conturi și contacte</text>
+<text x="60" y="138" font-size="18" fill="#647784" font-weight="normal">SCHEMĂ PROPUSĂ · tabelele nu sunt încă create · baza netex / schema public</text>
+<rect x="60" y="190" width="520" height="238" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
+<path d="M68 190 H572 Q580 190 580 198 V252 H60 V198 Q60 190 68 190" fill="#183642"/>
+<text x="78" y="218" font-size="23" fill="#ffffff" font-weight="bold">users</text>
+<text x="78" y="239" font-size="14" fill="#c7dedc" font-weight="normal">Conturile de acces la aplicație</text>
+<rect x="61" y="252" width="518" height="44" fill="#e3f3ef"/><line x1="60" y1="252" x2="580" y2="252" stroke="#d5e0e6"/>
+<text x="76" y="280" font-size="13" fill="#137c73" font-weight="bold">PK</text>
+<text x="125" y="280" font-size="17" fill="#183642" font-weight="normal">id</text>
+<text x="406" y="280" font-size="15" fill="#647784" font-weight="normal">BIGINT</text>
+<rect x="61" y="296" width="518" height="44" fill="#ffffff"/><line x1="60" y1="296" x2="580" y2="296" stroke="#d5e0e6"/>
+<text x="76" y="324" font-size="13" fill="#137c73" font-weight="bold">UK</text>
+<text x="125" y="324" font-size="17" fill="#183642" font-weight="normal">email</text>
+<text x="406" y="324" font-size="15" fill="#647784" font-weight="normal">VARCHAR(254)</text>
+<rect x="61" y="340" width="518" height="44" fill="#ffffff"/><line x1="60" y1="340" x2="580" y2="340" stroke="#d5e0e6"/>
+<text x="125" y="368" font-size="17" fill="#183642" font-weight="normal">password_hash</text>
+<text x="406" y="368" font-size="15" fill="#647784" font-weight="normal">VARCHAR(255)</text>
+<rect x="61" y="384" width="518" height="44" fill="#ffffff"/><line x1="60" y1="384" x2="580" y2="384" stroke="#d5e0e6"/>
+<text x="125" y="412" font-size="17" fill="#183642" font-weight="normal">created_at</text>
+<text x="406" y="412" font-size="15" fill="#647784" font-weight="normal">TIMESTAMPTZ</text>
+<rect x="860" y="190" width="520" height="370" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
+<path d="M868 190 H1372 Q1380 190 1380 198 V252 H860 V198 Q860 190 868 190" fill="#183642"/>
+<text x="878" y="218" font-size="23" fill="#ffffff" font-weight="bold">contacts</text>
+<text x="878" y="239" font-size="14" fill="#c7dedc" font-weight="normal">Persoanele din agenda publică</text>
+<rect x="861" y="252" width="518" height="44" fill="#ffffff"/><line x1="860" y1="252" x2="1380" y2="252" stroke="#d5e0e6"/>
+<text x="876" y="280" font-size="13" fill="#137c73" font-weight="bold">PK</text>
+<text x="925" y="280" font-size="17" fill="#183642" font-weight="normal">id</text>
+<text x="1206" y="280" font-size="15" fill="#647784" font-weight="normal">BIGINT</text>
+<rect x="861" y="296" width="518" height="44" fill="#ffffff"/><line x1="860" y1="296" x2="1380" y2="296" stroke="#d5e0e6"/>
+<text x="925" y="324" font-size="17" fill="#183642" font-weight="normal">name</text>
+<text x="1206" y="324" font-size="15" fill="#647784" font-weight="normal">VARCHAR(255)</text>
+<rect x="861" y="340" width="518" height="44" fill="#ffffff"/><line x1="860" y1="340" x2="1380" y2="340" stroke="#d5e0e6"/>
+<text x="925" y="368" font-size="17" fill="#183642" font-weight="normal">address</text>
+<text x="1206" y="368" font-size="15" fill="#647784" font-weight="normal">TEXT</text>
+<rect x="861" y="384" width="518" height="44" fill="#ffffff"/><line x1="860" y1="384" x2="1380" y2="384" stroke="#d5e0e6"/>
+<text x="925" y="412" font-size="17" fill="#183642" font-weight="normal">picture_path</text>
+<text x="1206" y="412" font-size="15" fill="#647784" font-weight="normal">VARCHAR(255)</text>
+<rect x="861" y="428" width="518" height="44" fill="#e3f3ef"/><line x1="860" y1="428" x2="1380" y2="428" stroke="#d5e0e6"/>
+<text x="876" y="456" font-size="13" fill="#137c73" font-weight="bold">FK</text>
+<text x="925" y="456" font-size="17" fill="#183642" font-weight="normal">created_by_user_id</text>
+<text x="1206" y="456" font-size="15" fill="#647784" font-weight="normal">BIGINT</text>
+<rect x="861" y="472" width="518" height="44" fill="#ffffff"/><line x1="860" y1="472" x2="1380" y2="472" stroke="#d5e0e6"/>
+<text x="925" y="500" font-size="17" fill="#183642" font-weight="normal">created_at</text>
+<text x="1206" y="500" font-size="15" fill="#647784" font-weight="normal">TIMESTAMPTZ</text>
+<rect x="861" y="516" width="518" height="44" fill="#ffffff"/><line x1="860" y1="516" x2="1380" y2="516" stroke="#d5e0e6"/>
+<text x="925" y="544" font-size="17" fill="#183642" font-weight="normal">updated_at</text>
+<text x="1206" y="544" font-size="15" fill="#647784" font-weight="normal">TIMESTAMPTZ</text>
+<path d="M860 450 H735 V274 H585" stroke="#137c73" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="603" y="259" font-size="19" fill="#137c73" font-weight="bold">1</text>
+<text x="798" y="432" font-size="19" fill="#137c73" font-weight="bold">0..N</text>
+<text x="608" y="505" font-size="16" fill="#254252" font-weight="normal">Un utilizator poate</text>
+<text x="608" y="529" font-size="16" fill="#254252" font-weight="normal">crea mai multe contacte.</text>
+<rect x="60" y="465" width="520" height="95" rx="8" fill="#eaf1f5" stroke="#d5e0e6"/>
+<text x="78" y="496" font-size="17" fill="#183642" font-weight="bold">Fiecare contact are exact un autor.</text>
+<text x="78" y="526" font-size="16" fill="#526976" font-weight="normal">Cheia externă indică ID-ul contului care l-a creat.</text>
+<rect x="60" y="622" width="640" height="124" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
+<text x="80" y="656" font-size="21" fill="#183642" font-weight="bold">flyway_schema_history</text>
+<text x="80" y="687" font-size="16" fill="#526976" font-weight="normal">Tabel tehnic, creat automat de Flyway la integrare.</text>
+<text x="80" y="716" font-size="16" fill="#526976" font-weight="normal">Ține evidența migrărilor SQL. Fără relație FK cu agenda.</text>
+<rect x="740" y="622" width="640" height="124" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
+<text x="760" y="656" font-size="21" fill="#183642" font-weight="bold">activity-service</text>
+<text x="760" y="687" font-size="16" fill="#526976" font-weight="normal">Tabelele și stocarea istoricului urmează să fie proiectate.</text>
+<text x="760" y="716" font-size="16" fill="#526976" font-weight="normal">Le vom adăuga în diagramă la implementarea serviciului.</text>
+<text x="60" y="803" font-size="17" fill="#254252" font-weight="normal">PK = identificator unic     UK = valoare unică     FK = referință către alt tabel</text>
+<text x="60" y="840" font-size="16" fill="#647784" font-weight="normal">Fotografiile sunt fișiere; picture_path păstrează referința. updated_at va fi actualizat de backend.</text>
+<text x="60" y="874" font-size="15" fill="#647784" font-weight="normal">Documentația coloanelor: docs/database.md · diagramă editabilă: docs/database.drawio</text>
+</g></svg>
