@@ -2,14 +2,14 @@
 
 This document separates working endpoints from planned endpoints. The planned API describes the agreed direction; it does not mean the features already exist.
 
-## Implemented in step 1
+## Implemented endpoints (steps 1–2)
 
 | Application | Method and path | Success response |
 | --- | --- | --- |
 | contacts-api (8080) | `GET /api/health` | HTTP 200, `{"status":"UP"}` |
 | activity-service (8081) | `GET /internal/health` | HTTP 200, `{"status":"UP"}` |
 
-These are Spring Boot Actuator endpoints. Only health is exposed and component details are hidden. At this milestone, UP means the Java application is running; it does not prove that SQL, Kafka or business operations work.
+These are Spring Boot Actuator endpoints. Only health is exposed and component details are hidden. Since step 2, the main API's health includes a database connectivity check: a database failure can produce HTTP 503 with `{"status":"DOWN"}`. Flyway applies the SQL schema during startup; a successful health response is not a test of contact operations or Kafka. The activity service's health still only covers its standalone application, with no SQL or Kafka integration.
 
 The frontend calls the main API via Vite's `/api` proxy. The frontend does not call the activity service directly.
 

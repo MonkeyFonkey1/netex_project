@@ -2,7 +2,7 @@
 
 A Java 25 / Spring Boot address book with a React + TypeScript frontend.
 
-**Current milestone: step 1 complete; step 2 in progress.** Both Java applications run independently, and the frontend checks the main API through a development proxy. Docker Compose now starts a local PostgreSQL database. The backend database connection and SQL migrations are the next part of step 2. Contact management, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
+**Current milestone: steps 1 and 2 implemented.** Docker Compose starts PostgreSQL, and the main API connects to it using Spring JDBC. Flyway creates the users and contacts tables on startup. Both Java applications run independently, and the frontend checks the main API through a development proxy. Contact management, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
 
 ## Repository layout
 
@@ -12,7 +12,7 @@ frontend/          React, TypeScript, Vite
 microservice/      activity-service: Spring Boot, Maven
 docs/API.md        implemented and planned HTTP endpoints
 docs/database.md   table inventory, relationship diagram and DBeaver walkthrough
-docs/database.svg  visual database diagram (proposed schema)
+docs/database.svg  visual database diagram (implemented backend schema)
 docs/database.png  image preview of the database diagram
 docs/database.drawio editable database diagram for draw.io / diagrams.net
 compose.yaml       local PostgreSQL container and persistent volume
@@ -29,7 +29,7 @@ Each Java application has its own `pom.xml` and Maven Wrapper. Each app is start
 
 Maven **3.9.16** is downloaded by the committed wrapper; no separate Maven installation is required. Both services use Spring Boot **3.5.16**. Frontend dependency versions are recorded in `frontend/package-lock.json`.
 
-Docker Desktop/Engine with Compose is required for PostgreSQL. The Java and React skeletons still run without a database connection. For a visual database client, use DBeaver Community.
+Docker Desktop/Engine with Compose is required for PostgreSQL. Start the database before the main API. The activity service does not use a database yet. Backend integration tests also require Docker and create their own temporary PostgreSQL instance. For a visual database client, use DBeaver Community.
 
 ## Start PostgreSQL
 
@@ -49,7 +49,7 @@ On macOS/Linux, use `cp .env.example .env` for the initial copy. The root `.env`
 
 Connect with DBeaver to `localhost:5432`, database `netex`, user `netex`, and the password from the root `.env`. If you customize the database or user, use those values instead. See [the visual database walkthrough](docs/database.md).
 
-At this checkpoint the database has no application tables. Flyway and the backend database connection are not implemented yet. The database username is a PostgreSQL account, separate from future address book user accounts.
+The first backend startup applies `backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql`. Refresh DBeaver afterwards to see `users`, `contacts` and `flyway_schema_history`. The application tables start empty; there are no demo users or contacts. The database username is a PostgreSQL account, separate from future address book user accounts.
 
 `docker compose stop postgres` stops the database. The named volume keeps its data for the next start. Initialization variables only apply to an empty volume; editing the password in `.env` does not change an existing database password.
 
@@ -63,17 +63,23 @@ PowerShell:
 
 ```powershell
 cd backend
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
 macOS / Linux:
 
 ```sh
 cd backend
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 Health endpoint: <http://localhost:8080/api/health>
+
+The `local` Spring profile loads the root `.env` using `application-local.properties`. Run from `backend/`, so `../.env` points to the correct file. Use plain `KEY=value` lines in `.env`, without shell `export`, surrounding quotes or variable expansion. Generated hexadecimal passwords work with both Compose and Spring's properties reader.
+
+Without the `local` profile (for example, when the backend later runs in Docker), supply `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` as environment variables. Defaults are localhost, 5432, netex and netex; there is no default password. The standard `SPRING_DATASOURCE_URL` can override the complete JDBC URL. Compose's PostgreSQL port mapping remains 5432 unless you also change `compose.yaml`.
+
+Flyway applies each migration once and validates it on later starts. Add a new migration for schema changes; do not edit an already applied migration. The main API now needs an available database to start, and its health check includes database connectivity. Database details remain hidden in the public response.
 
 ### Terminal 2: activity service
 
@@ -125,7 +131,12 @@ For an optional backend port override, set `SERVER_PORT` in that backend termina
 
 ## IntelliJ IDEA and VS Code
 
-Open `backend/` in IntelliJ IDEA and import its Maven project. Select JDK 25 as the Project SDK and Maven runner JRE, then run `ContactsApiApplication`.
+Open `backend/` in IntelliJ IDEA and import its Maven project. Reload Maven after dependency changes and select JDK 25 as the Project SDK and Maven runner JRE. In **Run → Edit Configurations**, select the configuration for `ContactsApiApplication` and set:
+
+- **Program arguments:** `--spring.profiles.active=local`
+- **Working directory:** the absolute path of this repository's `backend` folder
+
+If Program arguments is hidden, enable it through **Modify options**. Start PostgreSQL using Compose, then run the application. This works with a standard Java Application run configuration; a dedicated Spring UI is not required. The local profile reads the password from the ignored root `.env`.
 
 Open `microservice/` as a second IntelliJ project and run `ActivityServiceApplication`. Open `frontend/` in VS Code and use its terminal for npm commands.
 
@@ -152,6 +163,8 @@ The build includes TypeScript checking. `npm run typecheck` runs that check sepa
 
 The Java integration tests verify the public health path and that internal management information is not exposed. Spring Boot Actuator supplies these health endpoints; no custom health controller is needed.
 
+The backend tests use Testcontainers (test-only dependencies) with PostgreSQL 17.11 on a dynamically assigned port. They need Docker, but do not require a root `.env`, the `local` profile or the development database. The tests apply V1 to an empty database, check migration re-execution, identity/timestamp defaults, case-insensitive email uniqueness, the author foreign key, deletion restrictions and blank-name rejection. Test data is confined to that temporary instance. The container is removed after the test process ends.
+
 With all apps running, check:
 
 - Both Java health endpoints return HTTP 200 with `{"status":"UP"}`.
@@ -160,4 +173,4 @@ With all apps running, check:
 
 ## Next milestone
 
-After the first DBeaver connection, write Flyway SQL migrations for users and contacts and connect the main API to PostgreSQL. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
+Step 3 implements the contacts API on top of this schema. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.

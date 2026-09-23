@@ -77,16 +77,16 @@ PROJECT_CONTEXT.md   decizii, stare și pași următori
 - Aplicăm SOLID, KISS și DRY practic: fiecare abstracție trebuie să separe o responsabilitate reală sau să simplifice o schimbare probabilă.
 - Teste țintite pentru regulile importante: acces public, acces protejat, verificarea autorului, operații cu contacte, CSV, upload și procesarea evenimentului de înregistrare.
 
-## Structura de date propusă
+## Structura de date implementată
 
 În baza aplicației principale:
 
 - `users`: `id`, `email` unic, `password_hash`, `created_at`.
 - `contacts`: `id`, `name`, `address`, `picture_path`, `created_by_user_id` (cheie externă către `users.id`), `created_at`, `updated_at`.
 
-Adresa rămâne un singur câmp text, suficient pentru această cerință. Structura exactă a istoricului din `activity-service` se stabilește la implementarea serviciului; nu presupunem că este deja făcută.
+Adresa este un singur câmp text, limitat prin CHECK la 1000 de caractere. Emailul are index unic pe `lower(email)` și trebuie să fie fără spații la extremități. ID-urile sunt `BIGINT GENERATED ALWAYS AS IDENTITY`. FK-ul autorului folosește `ON DELETE RESTRICT` și are index. `picture_path` permite temporar NULL până la upload (pasul 6). Momentele de creare/modificare au DEFAULT CURRENT_TIMESTAMP; viitorul service Java trebuie să actualizeze `updated_at` la editare. Structura exactă a istoricului din `activity-service` se stabilește la implementarea serviciului; nu presupunem că este deja făcută.
 
-Definiția executabilă a tabelelor va fi în `backend/src/main/resources/db/migration/`, prin migrații SQL Flyway precum `V1__create_users_and_contacts.sql`. Fișierele vor arăta explicit `CREATE TABLE`, cheile primare, cheile externe, constrângerile și indicii. Pentru schimbări ulterioare adăugăm o migrație nouă, de exemplu `V2__add_contact_field.sql`, în loc să rescriem o migrație deja aplicată. `docs/database.md` este documentul central pentru toate tabelele proiectului: conține inventarul, diagrama Mermaid, fiecare coloană propusă din `users` și `contacts`, exemple, rolul istoricului Flyway și zona încă neproiectată a microserviciului. Actualizează documentul la fiecare schimbare de schemă, inclusiv pentru microserviciu. Migrațiile încă nu există; momentan schema este doar propusă.
+Definiția executabilă este `backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql`, aplicată prin Flyway. Pentru schimbări ulterioare adăugăm o migrație nouă, de exemplu `V2__add_contact_field.sql`, în loc să rescriem V1 deja aplicată. `docs/database.md` este documentul central pentru toate tabelele proiectului: inventar, coloane, reguli, exemple și istoricul Flyway. Diagrama este și în `docs/database.drawio`, `.svg` și `.png`. Actualizează documentația și diagramele la fiecare schimbare de schemă, inclusiv pentru viitorul microserviciu.
 
 ## Planul pe 5 zile
 
@@ -103,7 +103,7 @@ Ordinea se poate ajusta dacă apare un blocaj, dar nu eliminăm cerințe obligat
 ## Pașii de implementare, în ordine
 
 1. **Pregătirea proiectului (ziua 1) — finalizat.** Git, cele trei aplicații independente, contractul minim în `docs/API.md` și comenzile de dezvoltare în `README.md`. Verificat: fiecare aplicație pornește separat, iar React comunică cu API-ul prin proxy.
-2. **PostgreSQL și schema SQL (ziua 1) — în lucru.** PostgreSQL este pornit prin Docker Compose. Urmează conectarea candidatului din DBeaver la baza goală, apoi migrarea pentru `users` și `contacts` și conexiunea backendului. Verificare finală: pornirea pe o bază nouă creează schema fără pași manuali.
+2. **PostgreSQL și schema SQL (ziua 1) — implementat și verificat.** PostgreSQL în Docker Compose, conexiune Spring JDBC și Flyway V1 pentru `users` și `contacts`. Verificate: migrarea pe o bază goală de test, regulile SQL și aplicarea în baza locală `netex`. Candidatul poate inspecta cele trei tabele în DBeaver.
 3. **API-ul contactelor (zilele 1–2).** Implementăm listare publică, creare, editare, ștergere, validare și căutare după nume. Păstrăm regulile în service, nu în controller. Verificare: cererile HTTP întorc date și coduri de răspuns corecte.
 4. **Prima interfață React (ziua 2).** Afișăm contactele și legăm formularele și căutarea de API prin cereri asincrone. Verificare: modificările apar în pagină fără refresh complet.
 5. **Conturi și autorizare (ziua 2).** Implementăm înregistrare, login, logout și sesiunea. Protejăm modificările pe server și verificăm autorul la editare/ștergere; conectăm React la aceste fluxuri. Verificare: vizitatorul poate citi, dar nu poate modifica, iar un utilizator nu poate modifica datele altuia.
@@ -140,13 +140,15 @@ La fiecare pas: implementăm, rulăm, verificăm, explicăm fluxul și actualiz�
 
 Verificări efectuate pe Windows cu JDK 25.0.1 și Node.js 24.14.1: `mvnw.cmd verify` reușit pentru ambele servicii (4 teste în total), `npm run lint` fără avertismente și `npm run build` reușit, inclusiv verificarea TypeScript. Cele două endpointuri de health și proxy-ul au răspuns cu HTTP 200. În browser au fost verificate conectarea, eroarea când backendul este oprit și reconectarea prin buton după repornirea backendului. Procesele de verificare au fost oprite la final; aplicațiile se pornesc cu instrucțiunile din README.
 
-**Pasul 2 a început cu infrastructura PostgreSQL.** `compose.yaml` pornește imaginea oficială `postgres:17.11` pe `127.0.0.1:5432`, cu volum persistent `postgres_data` și verificare prin `pg_isready`. Baza și contul local de dezvoltare se numesc `netex`. `.env.example` documentează setările; fișierul local `.env`, exclus din Git, conține parola generată. `docs/database.md` explică configurația și conectarea din DBeaver. Configurația Compose a fost validată; pornirea cu `docker compose up -d --wait postgres` a reușit, containerul este healthy și a rămas pornit pentru verificarea candidatului. Conectarea vizuală din DBeaver nu este încă confirmată.
+**Pasul 2 este implementat și verificat.** `compose.yaml` pornește `postgres:17.11` pe `127.0.0.1:5432`, cu volum persistent și healthcheck. Backendul folosește `spring-boot-starter-jdbc`, driverul PostgreSQL 42.7.11 și Flyway 11.7.2 (versiuni gestionate de Spring Boot). Profilul `local` importă `.env` de la rădăcină ca fișier properties; pornește din `backend/` cu `mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"` sau cu argumentul IntelliJ `--spring.profiles.active=local`. Formatul `.env` documentat este simplu KEY=value fără ghilimele sau expresii shell. Rularea fără profil local folosește variabilele de mediu.
 
-**Nu sunt implementate încă** migrarea SQL, conexiunea backendului la PostgreSQL, contactele, autentificarea, fotografiile, CSV, Kafka, comunicarea HTTP de business sau rularea întregului sistem prin Compose. Health-ul backendului nu verifică încă baza. Health-ul microserviciului nu îndeplinește singur cerința de interacțiune HTTP dintre servicii. Nu marca aceste cerințe ca finalizate înainte de implementare și verificare.
+V1 a fost aplicată în baza locală `netex`: `users` și `contacts` au 0 rânduri, `flyway_schema_history` are V1 cu succes. Health a răspuns HTTP 200 cu UP și include acum conexiunea SQL. Cele 8 teste ale backendului au trecut cu Testcontainers 1.21.4 și PostgreSQL temporar: migrare pe bază goală și fără reaplicare, relație cu autorul, ID-uri/date, unicitate email indiferent de litere, autor inexistent, ștergerea autorului cu contacte și nume gol, plus cele două verificări health. Testele cer Docker, dar nu folosesc `.env` sau baza locală. Backendul pornit pentru verificare a fost oprit; PostgreSQL a rămas pornit pentru DBeaver. Inspecția vizuală de către candidat nu este încă confirmată.
+
+**Nu sunt implementate încă** operațiile API pentru contacte, autentificarea, fotografiile, CSV, Kafka, comunicarea HTTP de business sau rularea întregului sistem prin Compose. Nu există încă entități JPA sau repository-uri; infrastructura SQL folosește Spring JDBC. Health-ul microserviciului nu îndeplinește singur cerința de interacțiune HTTP dintre servicii. Nu marca aceste cerințe ca finalizate înainte de implementare și verificare.
 
 ## Următorul pas
 
-**Continuarea pasului 2:** candidatul se conectează din DBeaver la `localhost:5432`, baza `netex`, utilizatorul `netex`, cu parola din `.env` de la rădăcină. După ce confirmă conexiunea și vede baza goală, explicăm și implementăm conexiunea backendului și Flyway, apoi migrarea pentru `users` și `contacts`. Actualizăm documentarea tabelelor și diagrama în `docs/database.md`. Verificare finală: o bază nouă primește schema automat la pornirea backendului. API-ul contactelor urmează în pasul 3.
+**Punctul de învățare curent:** candidatul dă Refresh în DBeaver și vede `users`, `contacts`, `flyway_schema_history`. Explicăm fișierul V1 și configurarea profilului `local`. **Următoarea implementare: pasul 3, API-ul contactelor.** Conectăm controllerul, service-ul și repository-ul la schema existentă, păstrând pașii mici. Nu aplica din nou manual CREATE TABLE în DBeaver și nu modifica V1 după aplicare.
 
 ## Întrebări încă deschise
 
@@ -163,6 +165,7 @@ Verificări efectuate pe Windows cu JDK 25.0.1 și Node.js 24.14.1: `mvnw.cmd ve
 - 2026-09-23: a început pasul 2 cu PostgreSQL în Docker Compose, volum persistent, configurație locală exclusă din Git și instrucțiuni DBeaver. Containerul a pornit și a trecut verificarea de disponibilitate. Etapa de învățare curentă: conectarea vizuală la baza goală, înainte de Flyway și schema aplicației.
 - 2026-09-23: la cererea candidatului, `docs/database.md` a devenit referința vizuală pentru structura de date a întregului proiect. Au fost documentate diagrama users–contacts, coloanele, regulile și exemplele; sunt diferențiate tabelele propuse, istoricul Flyway și stocarea încă nestabilită a microserviciului. Nu au fost create tabele prin această actualizare de documentație.
 - 2026-09-23: diagrama a fost salvată și în fișiere independente: `docs/database.svg` și `docs/database.png` pentru vizualizare și `docs/database.drawio` pentru editare în draw.io / diagrams.net. XML-ul a fost verificat, iar imaginea PNG a fost randată local din SVG și inspectată vizual. Păstrează aceste fișiere sincronizate cu documentația și cu viitoarele migrări. Starea rămâne schemă propusă.
+- 2026-09-23: pasul 2 a fost implementat: Spring JDBC, driver PostgreSQL, Flyway și migrarea V1, profil local pentru citirea configurației, 8 teste cu PostgreSQL temporar. Migrarea a fost aplicată și verificată în netex. Documentația și diagramele au fost aliniate cu schema implementată; API-ul contactelor rămâne pasul următor.
 
 ## Instrucțiune pentru un alt chat AI
 

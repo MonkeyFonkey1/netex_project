@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="910" viewBox="0 0 1440 910" role="img" aria-labelledby="title desc"><title id="title">Netex — diagrama bazei de date propuse</title><desc id="desc">Un utilizator poate crea zero sau mai multe contacte. contacts.created_by_user_id face referire la users.id. Tabelele nu sunt încă implementate.</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#137c73"/></marker></defs><rect width="1440" height="910" fill="#f5f8fa"/><g font-family="Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="910" viewBox="0 0 1440 910" role="img" aria-labelledby="title desc"><title id="title">Netex — diagrama bazei de date implementate</title><desc id="desc">Un utilizator poate crea zero sau mai multe contacte. contacts.created_by_user_id face referire la users.id. Schema backendului este implementată prin migrarea V1.</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#137c73"/></marker></defs><rect width="1440" height="910" fill="#f5f8fa"/><g font-family="Arial, sans-serif">
 <text x="60" y="52" font-size="15" fill="#137c73" font-weight="bold">NETEX / STRUCTURA DATELOR</text>
 <text x="60" y="101" font-size="36" fill="#183642" font-weight="bold">Conturi și contacte</text>
-<text x="60" y="138" font-size="18" fill="#647784" font-weight="normal">SCHEMĂ PROPUSĂ · tabelele nu sunt încă create · baza netex / schema public</text>
+<text x="60" y="138" font-size="18" fill="#647784" font-weight="normal">SCHEMĂ BACKEND IMPLEMENTATĂ · migrarea V1 · baza netex / schema public</text>
 <rect x="60" y="190" width="520" height="238" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
 <path d="M68 190 H572 Q580 190 580 198 V252 H60 V198 Q60 190 68 190" fill="#183642"/>
 <text x="78" y="218" font-size="23" fill="#ffffff" font-weight="bold">users</text>
@@ -57,13 +57,13 @@
 <text x="78" y="526" font-size="16" fill="#526976" font-weight="normal">Cheia externă indică ID-ul contului care l-a creat.</text>
 <rect x="60" y="622" width="640" height="124" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
 <text x="80" y="656" font-size="21" fill="#183642" font-weight="bold">flyway_schema_history</text>
-<text x="80" y="687" font-size="16" fill="#526976" font-weight="normal">Tabel tehnic, creat automat de Flyway la integrare.</text>
+<text x="80" y="687" font-size="16" fill="#526976" font-weight="normal">Tabel tehnic, creat automat de Flyway.</text>
 <text x="80" y="716" font-size="16" fill="#526976" font-weight="normal">Ține evidența migrărilor SQL. Fără relație FK cu agenda.</text>
 <rect x="740" y="622" width="640" height="124" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
 <text x="760" y="656" font-size="21" fill="#183642" font-weight="bold">activity-service</text>
 <text x="760" y="687" font-size="16" fill="#526976" font-weight="normal">Tabelele și stocarea istoricului urmează să fie proiectate.</text>
 <text x="760" y="716" font-size="16" fill="#526976" font-weight="normal">Le vom adăuga în diagramă la implementarea serviciului.</text>
 <text x="60" y="803" font-size="17" fill="#254252" font-weight="normal">PK = identificator unic     UK = valoare unică     FK = referință către alt tabel</text>
-<text x="60" y="840" font-size="16" fill="#647784" font-weight="normal">Fotografiile sunt fișiere; picture_path păstrează referința. updated_at va fi actualizat de backend.</text>
+<text x="60" y="840" font-size="16" fill="#647784" font-weight="normal">picture_path permite NULL până la upload. Email unic prin lower(email). Adresa: maximum 1000 de caractere.</text>
 <text x="60" y="874" font-size="15" fill="#647784" font-weight="normal">Documentația coloanelor: docs/database.md · diagramă editabilă: docs/database.drawio</text>
 </g></svg>
