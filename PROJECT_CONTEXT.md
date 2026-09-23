@@ -86,7 +86,7 @@ PROJECT_CONTEXT.md   decizii, stare și pași următori
 
 Adresa rămâne un singur câmp text, suficient pentru această cerință. Structura exactă a istoricului din `activity-service` se stabilește la implementarea serviciului; nu presupunem că este deja făcută.
 
-Definiția executabilă a tabelelor va fi în `backend/src/main/resources/db/migration/`, prin migrații SQL Flyway precum `V1__create_users_and_contacts.sql`. Fișierele vor arăta explicit `CREATE TABLE`, cheile primare, cheile externe, constrângerile și indicii. Pentru schimbări ulterioare adăugăm o migrație nouă, de exemplu `V2__add_contact_field.sql`, în loc să rescriem o migrație deja aplicată. Vom adăuga și `docs/database.md`, cu o explicație scurtă și o diagramă a relației dintre tabele. Fișierele se creează la implementare; momentan schema este doar propusă.
+Definiția executabilă a tabelelor va fi în `backend/src/main/resources/db/migration/`, prin migrații SQL Flyway precum `V1__create_users_and_contacts.sql`. Fișierele vor arăta explicit `CREATE TABLE`, cheile primare, cheile externe, constrângerile și indicii. Pentru schimbări ulterioare adăugăm o migrație nouă, de exemplu `V2__add_contact_field.sql`, în loc să rescriem o migrație deja aplicată. `docs/database.md` este documentul central pentru toate tabelele proiectului: conține inventarul, diagrama Mermaid, fiecare coloană propusă din `users` și `contacts`, exemple, rolul istoricului Flyway și zona încă neproiectată a microserviciului. Actualizează documentul la fiecare schimbare de schemă, inclusiv pentru microserviciu. Migrațiile încă nu există; momentan schema este doar propusă.
 
 ## Planul pe 5 zile
 
@@ -161,6 +161,7 @@ Verificări efectuate pe Windows cu JDK 25.0.1 și Node.js 24.14.1: `mvnw.cmd ve
 - 2026-09-23: repository-ul Git a fost conectat la GitHub. Au fost create cele trei directoare majore și `.gitignore`. Nu a început implementarea aplicației.
 - 2026-09-23: pasul 1 a fost implementat: două aplicații Spring Boot pe Java 25, React + TypeScript + Vite, Maven Wrapper, health prin Actuator, proxy și pagină de verificare a conexiunii. Au fost adăugate README și contractul HTTP; buildurile, testele Java, lintul și pornirea separată au fost verificate.
 - 2026-09-23: a început pasul 2 cu PostgreSQL în Docker Compose, volum persistent, configurație locală exclusă din Git și instrucțiuni DBeaver. Containerul a pornit și a trecut verificarea de disponibilitate. Etapa de învățare curentă: conectarea vizuală la baza goală, înainte de Flyway și schema aplicației.
+- 2026-09-23: la cererea candidatului, `docs/database.md` a devenit referința vizuală pentru structura de date a întregului proiect. Au fost documentate diagrama users–contacts, coloanele, regulile și exemplele; sunt diferențiate tabelele propuse, istoricul Flyway și stocarea încă nestabilită a microserviciului. Nu au fost create tabele prin această actualizare de documentație.
 
 ## Instrucțiune pentru un alt chat AI
 

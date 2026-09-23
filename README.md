@@ -11,7 +11,7 @@ backend/           contacts-api: Spring Boot, Maven
 frontend/          React, TypeScript, Vite
 microservice/      activity-service: Spring Boot, Maven
 docs/API.md        implemented and planned HTTP endpoints
-docs/database.md   local PostgreSQL setup and DBeaver walkthrough
+docs/database.md   table inventory, relationship diagram and DBeaver walkthrough
 compose.yaml       local PostgreSQL container and persistent volume
 PROJECT_CONTEXT.md development decisions and progress (Romanian)
 ```
