@@ -2,7 +2,7 @@
 
 A Java 25 / Spring Boot address book with a React + TypeScript frontend.
 
-**Current milestone: project setup (step 1).** Both Java applications can run independently. The frontend checks the main API through a development proxy. Contact management, authentication, SQL persistence, Kafka processing and the business HTTP interaction are planned next. The full Docker Compose setup has not been added yet.
+**Current milestone: step 1 complete; step 2 in progress.** Both Java applications run independently, and the frontend checks the main API through a development proxy. Docker Compose now starts a local PostgreSQL database. The backend database connection and SQL migrations are the next part of step 2. Contact management, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
 
 ## Repository layout
 
@@ -11,6 +11,8 @@ backend/           contacts-api: Spring Boot, Maven
 frontend/          React, TypeScript, Vite
 microservice/      activity-service: Spring Boot, Maven
 docs/API.md        implemented and planned HTTP endpoints
+docs/database.md   local PostgreSQL setup and DBeaver walkthrough
+compose.yaml       local PostgreSQL container and persistent volume
 PROJECT_CONTEXT.md development decisions and progress (Romanian)
 ```
 
@@ -24,7 +26,29 @@ Each Java application has its own `pom.xml` and Maven Wrapper. Each app is start
 
 Maven **3.9.16** is downloaded by the committed wrapper; no separate Maven installation is required. Both services use Spring Boot **3.5.16**. Frontend dependency versions are recorded in `frontend/package-lock.json`.
 
-Docker is not required for this milestone. PostgreSQL will be introduced through Docker Compose in step 2.
+Docker Desktop/Engine with Compose is required for PostgreSQL. The Java and React skeletons still run without a database connection. For a visual database client, use DBeaver Community.
+
+## Start PostgreSQL
+
+Start Docker Desktop, then run from the repository root:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Do this only if `.env` does not already exist. Choose a local password in `.env`, then run:
+
+```sh
+docker compose up -d --wait postgres
+```
+
+On macOS/Linux, use `cp .env.example .env` for the initial copy. The root `.env` is ignored by Git and is separate from the optional frontend `.env`.
+
+Connect with DBeaver to `localhost:5432`, database `netex`, user `netex`, and the password from the root `.env`. If you customize the database or user, use those values instead. See [the visual database walkthrough](docs/database.md).
+
+At this checkpoint the database has no application tables. Flyway and the backend database connection are not implemented yet. The database username is a PostgreSQL account, separate from future address book user accounts.
+
+`docker compose stop postgres` stops the database. The named volume keeps its data for the next start. Initialization variables only apply to an empty volume; editing the password in `.env` does not change an existing database password.
 
 ## Run locally
 
@@ -133,4 +157,4 @@ With all apps running, check:
 
 ## Next milestone
 
-Introduce PostgreSQL in Docker Compose, write Flyway SQL migrations for users and contacts, and connect the main API to the database. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
+After the first DBeaver connection, write Flyway SQL migrations for users and contacts and connect the main API to PostgreSQL. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.

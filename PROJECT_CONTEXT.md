@@ -13,6 +13,7 @@ Acesta este contextul de lucru pentru proiectul de interviu. Poate fi dat unui a
 - Este permisă folosirea AI, dar candidatul trebuie să înțeleagă și să poată explica aplicația la interviu.
 - Țintă: toate cerințele funcționale până la sfârșitul zilei 4; ziua 5 pentru integrare, verificare, documentație și predare. Planul depinde de timpul disponibil zilnic.
 - Prioritate: proiect complet, cu structură clară și extensibilitate justificată, fără arhitectură inutilă.
+- Mod de lucru pentru învățare: explică înainte de fiecare schimbare ce este componenta, de ce există și cum se verifică. Candidatul dorește pași mici și este începător în Spring, Docker și SQL. Folosește DBeaver pentru inspecția vizuală a bazei; nu cere candidatului să inspecteze tabelele prin psql. Așteaptă verificarea vizuală a fiecărui punct de învățare înainte de următoarea modificare dependentă.
 
 ## Cerințele primite
 
@@ -102,7 +103,7 @@ Ordinea se poate ajusta dacă apare un blocaj, dar nu eliminăm cerințe obligat
 ## Pașii de implementare, în ordine
 
 1. **Pregătirea proiectului (ziua 1) — finalizat.** Git, cele trei aplicații independente, contractul minim în `docs/API.md` și comenzile de dezvoltare în `README.md`. Verificat: fiecare aplicație pornește separat, iar React comunică cu API-ul prin proxy.
-2. **PostgreSQL și schema SQL (ziua 1).** Pornim PostgreSQL prin Docker Compose, definim tabelele `users` și `contacts` prin migrații și conectăm API-ul Java. Verificare: pornirea pe o bază nouă creează schema fără pași manuali.
+2. **PostgreSQL și schema SQL (ziua 1) — în lucru.** PostgreSQL este pornit prin Docker Compose. Urmează conectarea candidatului din DBeaver la baza goală, apoi migrarea pentru `users` și `contacts` și conexiunea backendului. Verificare finală: pornirea pe o bază nouă creează schema fără pași manuali.
 3. **API-ul contactelor (zilele 1–2).** Implementăm listare publică, creare, editare, ștergere, validare și căutare după nume. Păstrăm regulile în service, nu în controller. Verificare: cererile HTTP întorc date și coduri de răspuns corecte.
 4. **Prima interfață React (ziua 2).** Afișăm contactele și legăm formularele și căutarea de API prin cereri asincrone. Verificare: modificările apar în pagină fără refresh complet.
 5. **Conturi și autorizare (ziua 2).** Implementăm înregistrare, login, logout și sesiunea. Protejăm modificările pe server și verificăm autorul la editare/ștergere; conectăm React la aceste fluxuri. Verificare: vizitatorul poate citi, dar nu poate modifica, iar un utilizator nu poate modifica datele altuia.
@@ -139,11 +140,13 @@ La fiecare pas: implementăm, rulăm, verificăm, explicăm fluxul și actualiz�
 
 Verificări efectuate pe Windows cu JDK 25.0.1 și Node.js 24.14.1: `mvnw.cmd verify` reușit pentru ambele servicii (4 teste în total), `npm run lint` fără avertismente și `npm run build` reușit, inclusiv verificarea TypeScript. Cele două endpointuri de health și proxy-ul au răspuns cu HTTP 200. În browser au fost verificate conectarea, eroarea când backendul este oprit și reconectarea prin buton după repornirea backendului. Procesele de verificare au fost oprite la final; aplicațiile se pornesc cu instrucțiunile din README.
 
-**Nu sunt implementate încă** contactele, SQL, autentificarea, fotografiile, CSV, Kafka, comunicarea HTTP de business sau Docker Compose. Health-ul microserviciului nu îndeplinește singur cerința de interacțiune HTTP dintre servicii. Nu marca aceste cerințe ca finalizate înainte de implementare și verificare.
+**Pasul 2 a început cu infrastructura PostgreSQL.** `compose.yaml` pornește imaginea oficială `postgres:17.11` pe `127.0.0.1:5432`, cu volum persistent `postgres_data` și verificare prin `pg_isready`. Baza și contul local de dezvoltare se numesc `netex`. `.env.example` documentează setările; fișierul local `.env`, exclus din Git, conține parola generată. `docs/database.md` explică configurația și conectarea din DBeaver. Configurația Compose a fost validată; pornirea cu `docker compose up -d --wait postgres` a reușit, containerul este healthy și a rămas pornit pentru verificarea candidatului. Conectarea vizuală din DBeaver nu este încă confirmată.
+
+**Nu sunt implementate încă** migrarea SQL, conexiunea backendului la PostgreSQL, contactele, autentificarea, fotografiile, CSV, Kafka, comunicarea HTTP de business sau rularea întregului sistem prin Compose. Health-ul backendului nu verifică încă baza. Health-ul microserviciului nu îndeplinește singur cerința de interacțiune HTTP dintre servicii. Nu marca aceste cerințe ca finalizate înainte de implementare și verificare.
 
 ## Următorul pas
 
-**Pasul 2: PostgreSQL și schema SQL.** Pornim motorul Docker Desktop, adăugăm PostgreSQL în Compose cu volum persistent, configurăm conexiunea backendului și Flyway, apoi scriem migrarea pentru `users` și `contacts`. Documentăm tabelele în `docs/database.md`. Verificare: o bază nouă primește schema automat la pornirea backendului. API-ul contactelor urmează în pasul 3.
+**Continuarea pasului 2:** candidatul se conectează din DBeaver la `localhost:5432`, baza `netex`, utilizatorul `netex`, cu parola din `.env` de la rădăcină. După ce confirmă conexiunea și vede baza goală, explicăm și implementăm conexiunea backendului și Flyway, apoi migrarea pentru `users` și `contacts`. Actualizăm documentarea tabelelor și diagrama în `docs/database.md`. Verificare finală: o bază nouă primește schema automat la pornirea backendului. API-ul contactelor urmează în pasul 3.
 
 ## Întrebări încă deschise
 
@@ -157,6 +160,7 @@ Verificări efectuate pe Windows cu JDK 25.0.1 și Node.js 24.14.1: `mvnw.cmd ve
 - 2026-09-23: cerințele și deciziile discutate au fost centralizate în acest fișier; planul a fost detaliat în pași de implementare. S-a decis folosirea unui singur repository Git cu `backend/`, `frontend/` și `microservice/`, precum și documentarea structurii SQL prin migrații și diagramă.
 - 2026-09-23: repository-ul Git a fost conectat la GitHub. Au fost create cele trei directoare majore și `.gitignore`. Nu a început implementarea aplicației.
 - 2026-09-23: pasul 1 a fost implementat: două aplicații Spring Boot pe Java 25, React + TypeScript + Vite, Maven Wrapper, health prin Actuator, proxy și pagină de verificare a conexiunii. Au fost adăugate README și contractul HTTP; buildurile, testele Java, lintul și pornirea separată au fost verificate.
+- 2026-09-23: a început pasul 2 cu PostgreSQL în Docker Compose, volum persistent, configurație locală exclusă din Git și instrucțiuni DBeaver. Containerul a pornit și a trecut verificarea de disponibilitate. Etapa de învățare curentă: conectarea vizuală la baza goală, înainte de Flyway și schema aplicației.
 
 ## Instrucțiune pentru un alt chat AI
 
