@@ -101,7 +101,7 @@ Ordinea se poate ajusta dacă apare un blocaj, dar nu eliminăm cerințe obligat
 
 ## Pașii de implementare, în ordine
 
-1. **Pregătirea proiectului (ziua 1).** Inițializăm Git și structura cu frontend, API principal și `activity-service`. Stabilim contractul minim al API-ului și comenzile de dezvoltare. Verificare: fiecare aplicație pornește separat.
+1. **Pregătirea proiectului (ziua 1) — finalizat.** Git, cele trei aplicații independente, contractul minim în `docs/API.md` și comenzile de dezvoltare în `README.md`. Verificat: fiecare aplicație pornește separat, iar React comunică cu API-ul prin proxy.
 2. **PostgreSQL și schema SQL (ziua 1).** Pornim PostgreSQL prin Docker Compose, definim tabelele `users` și `contacts` prin migrații și conectăm API-ul Java. Verificare: pornirea pe o bază nouă creează schema fără pași manuali.
 3. **API-ul contactelor (zilele 1–2).** Implementăm listare publică, creare, editare, ștergere, validare și căutare după nume. Păstrăm regulile în service, nu în controller. Verificare: cererile HTTP întorc date și coduri de răspuns corecte.
 4. **Prima interfață React (ziua 2).** Afișăm contactele și legăm formularele și căutarea de API prin cereri asincrone. Verificare: modificările apar în pagină fără refresh complet.
@@ -127,23 +127,36 @@ La fiecare pas: implementăm, rulăm, verificăm, explicăm fluxul și actualiz�
 
 ## Stare curentă
 
-La 23 septembrie 2026, există un repository Git conectat la GitHub și au fost create directoarele `backend/`, `frontend/` și `microservice/`, fiecare cu un fișier `.gitkeep`, plus un `.gitignore` la rădăcină. **Nu există încă aplicații implementate**, teste, fișier Compose sau README. Nu marca cerințele funcționale ca finalizate înainte de a le implementa și verifica.
+**Pasul 1 este implementat și verificat.** Repository-ul conține:
+
+- `backend/`: `contacts-api`, Spring Boot 3.5.16 pe Java 25, port 8080, cu `GET /api/health`.
+- `microservice/`: `activity-service`, aceeași configurație Java, port 8081, cu `GET /internal/health`.
+- Maven Wrapper 3.9.16 pentru fiecare serviciu; nu este necesară instalarea separată a Maven.
+- `frontend/`: React + TypeScript + Vite, pentru Node.js 24, port 5173. O pagină temporară verifică asincron starea API-ului și permite reîncercarea. Proxy-ul Vite trimite `/api/*` către backend.
+- `README.md`: cerințe locale, comenzi separate pentru Windows/macOS/Linux, porturi, configurare opțională și verificări.
+- `docs/API.md`: endpointurile de health implementate și contractul propus pentru etapele următoare.
+- `.gitignore` pentru dependințe, rezultate de build, IDE, fișiere de mediu și uploaduri; `.gitattributes` pentru terminatoare de linie compatibile între platforme. Fișierele `.gitkeep` au fost înlocuite de fișiere reale.
+
+Verificări efectuate pe Windows cu JDK 25.0.1 și Node.js 24.14.1: `mvnw.cmd verify` reușit pentru ambele servicii (4 teste în total), `npm run lint` fără avertismente și `npm run build` reușit, inclusiv verificarea TypeScript. Cele două endpointuri de health și proxy-ul au răspuns cu HTTP 200. În browser au fost verificate conectarea, eroarea când backendul este oprit și reconectarea prin buton după repornirea backendului. Procesele de verificare au fost oprite la final; aplicațiile se pornesc cu instrucțiunile din README.
+
+**Nu sunt implementate încă** contactele, SQL, autentificarea, fotografiile, CSV, Kafka, comunicarea HTTP de business sau Docker Compose. Health-ul microserviciului nu îndeplinește singur cerința de interacțiune HTTP dintre servicii. Nu marca aceste cerințe ca finalizate înainte de implementare și verificare.
 
 ## Următorul pas
 
-Prima felie funcțională: Spring Boot pe Java 25 în `backend/` + PostgreSQL în Docker + migrarea SQL pentru contacte + endpoint public de listare. În paralel, creăm structura minimă React în `frontend/` pentru a afișa răspunsul API-ului. Înlocuim fișierele `.gitkeep` când directoarele primesc fișiere reale. După fiecare etapă, actualizăm acest fișier cu ce funcționează și ce urmează.
+**Pasul 2: PostgreSQL și schema SQL.** Pornim motorul Docker Desktop, adăugăm PostgreSQL în Compose cu volum persistent, configurăm conexiunea backendului și Flyway, apoi scriem migrarea pentru `users` și `contacts`. Documentăm tabelele în `docs/database.md`. Verificare: o bază nouă primește schema automat la pornirea backendului. API-ul contactelor urmează în pasul 3.
 
 ## Întrebări încă deschise
 
 - Numărul de ore disponibile zilnic și data exactă a predării nu au fost precizate.
 - CV-ul a fost menționat, dar nu a fost trimis încă în această conversație.
 - Trebuie decis la implementare cum persistă `activity-service` istoricul evenimentelor; comportamentul trebuie să poată fi demonstrat ușor.
-- Portul local al interfeței și pașii exacți pentru variabilele de mediu se vor fixa în README după ce Docker Compose funcționează.
+- Configurarea variabilelor de mediu pentru SQL, Kafka și Compose se va documenta odată cu introducerea lor. Porturile locale și opțiunea `API_PROXY_TARGET` sunt deja documentate în README.
 
 ## Jurnal de progres
 
 - 2026-09-23: cerințele și deciziile discutate au fost centralizate în acest fișier; planul a fost detaliat în pași de implementare. S-a decis folosirea unui singur repository Git cu `backend/`, `frontend/` și `microservice/`, precum și documentarea structurii SQL prin migrații și diagramă.
 - 2026-09-23: repository-ul Git a fost conectat la GitHub. Au fost create cele trei directoare majore și `.gitignore`. Nu a început implementarea aplicației.
+- 2026-09-23: pasul 1 a fost implementat: două aplicații Spring Boot pe Java 25, React + TypeScript + Vite, Maven Wrapper, health prin Actuator, proxy și pagină de verificare a conexiunii. Au fost adăugate README și contractul HTTP; buildurile, testele Java, lintul și pornirea separată au fost verificate.
 
 ## Instrucțiune pentru un alt chat AI
 
