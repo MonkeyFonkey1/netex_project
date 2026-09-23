@@ -1,0 +1,27 @@
+# Java / Maven build output
+**/target/
+*.class
+
+# React / Vite build output and dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+out/
+
+# Local environment files (keep documented examples)
+.env
+.env.*
+!.env.example
+
+# Uploaded files and local logs
+uploads/
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db

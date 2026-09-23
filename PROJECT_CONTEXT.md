@@ -127,11 +127,11 @@ La fiecare pas: implementăm, rulăm, verificăm, explicăm fluxul și actualiz�
 
 ## Stare curentă
 
-La 23 septembrie 2026, **nu există cod implementat** în acest director. Nu există încă repository Git, aplicații, teste, fișier Compose sau README. Acest fișier este primul artefact al proiectului. Nu marca niciuna dintre cerințele de mai sus ca finalizată înainte de a o implementa și verifica.
+La 23 septembrie 2026, există un repository Git conectat la GitHub și au fost create directoarele `backend/`, `frontend/` și `microservice/`, fiecare cu un fișier `.gitkeep`, plus un `.gitignore` la rădăcină. **Nu există încă aplicații implementate**, teste, fișier Compose sau README. Nu marca cerințele funcționale ca finalizate înainte de a le implementa și verifica.
 
 ## Următorul pas
 
-Inițializarea proiectului și a repository-ului, apoi prima felie funcțională: Spring Boot pe Java 25 + PostgreSQL în Docker + migrarea SQL pentru contacte + endpoint public de listare. În paralel, creăm structura minimă React pentru a afișa răspunsul API-ului. După fiecare etapă, actualizăm acest fișier cu ce funcționează și ce urmează.
+Prima felie funcțională: Spring Boot pe Java 25 în `backend/` + PostgreSQL în Docker + migrarea SQL pentru contacte + endpoint public de listare. În paralel, creăm structura minimă React în `frontend/` pentru a afișa răspunsul API-ului. Înlocuim fișierele `.gitkeep` când directoarele primesc fișiere reale. După fiecare etapă, actualizăm acest fișier cu ce funcționează și ce urmează.
 
 ## Întrebări încă deschise
 
@@ -142,7 +142,8 @@ Inițializarea proiectului și a repository-ului, apoi prima felie funcțională
 
 ## Jurnal de progres
 
-- 2026-09-23: cerințele și deciziile discutate au fost centralizate în acest fișier; planul a fost detaliat în pași de implementare. S-a decis folosirea unui singur repository Git cu `backend/`, `frontend/` și `microservice/`, precum și documentarea structurii SQL prin migrații și diagramă. Nu a început implementarea aplicației.
+- 2026-09-23: cerințele și deciziile discutate au fost centralizate în acest fișier; planul a fost detaliat în pași de implementare. S-a decis folosirea unui singur repository Git cu `backend/`, `frontend/` și `microservice/`, precum și documentarea structurii SQL prin migrații și diagramă.
+- 2026-09-23: repository-ul Git a fost conectat la GitHub. Au fost create cele trei directoare majore și `.gitignore`. Nu a început implementarea aplicației.
 
 ## Instrucțiune pentru un alt chat AI
 
