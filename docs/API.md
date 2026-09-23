@@ -2,23 +2,32 @@
 
 This document separates working endpoints from planned endpoints. The planned API describes the agreed direction; it does not mean the features already exist.
 
-## Implemented endpoints (steps 1–2)
+## Implemented endpoints (steps 1–3)
 
 | Application | Method and path | Success response |
 | --- | --- | --- |
 | contacts-api (8080) | `GET /api/health` | HTTP 200, `{"status":"UP"}` |
 | activity-service (8081) | `GET /internal/health` | HTTP 200, `{"status":"UP"}` |
+| contacts-api (8080) | `GET /api/contacts` | HTTP 200, JSON array of public contacts |
+| contacts-api (8080) | `GET /api/contacts?name=...` | HTTP 200, filtered JSON array |
+| contacts-api (8080) | `GET /api/contacts/{id}` | HTTP 200, one contact; HTTP 404 if absent |
 
-These are Spring Boot Actuator endpoints. Only health is exposed and component details are hidden. Since step 2, the main API's health includes a database connectivity check: a database failure can produce HTTP 503 with `{"status":"DOWN"}`. Flyway applies the SQL schema during startup; a successful health response is not a test of contact operations or Kafka. The activity service's health still only covers its standalone application, with no SQL or Kafka integration.
+The two health paths are Spring Boot Actuator endpoints. Only health is exposed and component details are hidden. Since step 2, the main API's health includes a database connectivity check: a database failure can produce HTTP 503 with `{"status":"DOWN"}`. Flyway applies the SQL schema during startup. The activity service's health still only covers its standalone application, with no SQL or Kafka integration.
 
 The frontend calls the main API via Vite's `/api` proxy. The frontend does not call the activity service directly.
+
+The contact read endpoints require no login. The optional `name` parameter is trimmed and matches a case-insensitive substring; an absent or blank value lists all contacts. `%` and `_` are treated as ordinary characters. Results are ordered by ascending contact ID, and an empty address book returns `[]`. A search term longer than 255 characters returns HTTP 400. A public contact currently contains `id`, `name` and `address`:
+
+```json
+{"id":1,"name":"Maria Popescu","address":"Strada Exemplu 10"}
+```
+
+This is an illustrative response; the local database initially has no contacts. Internal columns such as `created_by_user_id` and `picture_path` are not returned. The public photo URL will be added with the upload feature. The backend tests insert temporary contacts into an isolated PostgreSQL container and roll those rows back.
 
 ## Planned contacts API
 
 | Method and path | Access | Purpose |
 | --- | --- | --- |
-| `GET /api/contacts?name=...` | Public | List contacts; optional case-insensitive name search |
-| `GET /api/contacts/{id}` | Public | Retrieve a contact |
 | `POST /api/contacts` | Signed in | Create a contact; server assigns its author |
 | `PUT /api/contacts/{id}` | Author only | Update a contact and optionally replace its photo |
 | `DELETE /api/contacts/{id}` | Author only | Delete a contact |
@@ -56,4 +65,4 @@ Only the main API should use this business endpoint. Storage, delivery failure b
 - 409 for a duplicate account email.
 - 413 for an oversized upload.
 
-The current skeleton has no login or contact endpoints; those rules are not implemented yet.
+Only the public contact read endpoints are implemented. The 400 response for an overlong search and the 404 response for a missing contact are verified; the authentication, write, export and upload responses remain planned.

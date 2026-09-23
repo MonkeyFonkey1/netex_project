@@ -2,7 +2,7 @@
 
 A Java 25 / Spring Boot address book with a React + TypeScript frontend.
 
-**Current milestone: steps 1 and 2 implemented.** Docker Compose starts PostgreSQL, and the main API connects to it using Spring JDBC. Flyway creates the users and contacts tables on startup. Both Java applications run independently, and the frontend checks the main API through a development proxy. Contact management, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
+**Current milestone: steps 1–3 implemented.** Docker Compose starts PostgreSQL, and the main API connects to it using Spring JDBC. Flyway creates the users and contacts tables on startup. The main API publicly lists and searches contacts, and retrieves one contact by ID. Both Java applications run independently, and the frontend checks the main API through a development proxy. Contact writes, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
 
 ## Repository layout
 
@@ -74,6 +74,8 @@ cd backend
 ```
 
 Health endpoint: <http://localhost:8080/api/health>
+
+Public contacts endpoint: <http://localhost:8080/api/contacts>. The local database starts with no contacts, so the response is `[]`. To search, use a URL such as <http://localhost:8080/api/contacts?name=Maria>. The `name` filter ignores case and matches part of a name. `GET /api/contacts/{id}` returns one contact or HTTP 404. See [the API contract](docs/API.md) for the response fields and validation rules.
 
 The `local` Spring profile loads the root `.env` using `application-local.properties`. Run from `backend/`, so `../.env` points to the correct file. Use plain `KEY=value` lines in `.env`, without shell `export`, surrounding quotes or variable expansion. Generated hexadecimal passwords work with both Compose and Spring's properties reader.
 
@@ -161,16 +163,17 @@ npm run build
 
 The build includes TypeScript checking. `npm run typecheck` runs that check separately.
 
-The Java integration tests verify the public health path and that internal management information is not exposed. Spring Boot Actuator supplies these health endpoints; no custom health controller is needed.
+The Java integration tests verify the public health path, the contact read endpoints and that internal management information is not exposed. Spring Boot Actuator supplies the health endpoints; the contact endpoints use a controller, service and repository.
 
-The backend tests use Testcontainers (test-only dependencies) with PostgreSQL 17.11 on a dynamically assigned port. They need Docker, but do not require a root `.env`, the `local` profile or the development database. The tests apply V1 to an empty database, check migration re-execution, identity/timestamp defaults, case-insensitive email uniqueness, the author foreign key, deletion restrictions and blank-name rejection. Test data is confined to that temporary instance. The container is removed after the test process ends.
+The backend tests use Testcontainers (test-only dependencies) with PostgreSQL 17.11 on a dynamically assigned port. They need Docker, but do not require a root `.env`, the `local` profile or the development database. The tests apply V1 to an empty database, check migration re-execution, identity/timestamp defaults, case-insensitive email uniqueness, the author foreign key, deletion restrictions and blank-name rejection. The contact API tests cover an empty list, ordered results, case-insensitive substring search, literal wildcard characters, invalid search length, one contact and an unknown ID. Test data is confined to that temporary instance. The container is removed after the test process ends.
 
 With all apps running, check:
 
 - Both Java health endpoints return HTTP 200 with `{"status":"UP"}`.
 - <http://localhost:5173/api/health> returns the same response through Vite.
+- `GET http://localhost:8080/api/contacts` returns HTTP 200 and `[]` before any contacts are created.
 - The page reports a connected server. If you stop the main API and click **Check again**, it reports an unavailable server.
 
 ## Next milestone
 
-Step 3 implements the contacts API on top of this schema. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
+Step 4 connects a first React contacts list and search form to these public endpoints. Contact writes and authentication follow in step 5. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
