@@ -93,8 +93,8 @@ Definiția executabilă este `backend/src/main/resources/db/migration/V1__create
 | Ziua | Rezultat verificabil |
 | --- | --- |
 | 1 | Scheletul proiectului, PostgreSQL în Docker, schema SQL și API-ul de bază pentru contacte. |
-| 2 | React conectat la API; înregistrare, login, logout și reguli de acces pe server. |
-| 3 | Upload real de fotografii, căutare după nume, export CSV și publicarea evenimentului de înregistrare în Kafka. |
+| 2 | React conectat la API; înregistrare, login, logout, creare/editare/ștergere contacte și reguli de acces pe server. |
+| 3 | Upload real de fotografii, export CSV și publicarea evenimentului de înregistrare în Kafka. |
 | 4 | Consumerul Kafka, apelul HTTP dintre servicii și pornirea completă prin Docker Compose; demonstrație cap-coadă. |
 | 5 | Remedierea problemelor, teste, README detaliat, verificare dintr-un clone curat și push pe GitHub. |
 
@@ -104,9 +104,9 @@ Ordinea se poate ajusta dacă apare un blocaj, dar nu eliminăm cerințe obligat
 
 1. **Pregătirea proiectului (ziua 1) — finalizat.** Git, cele trei aplicații independente, contractul minim în `docs/API.md` și comenzile de dezvoltare în `README.md`. Verificat: fiecare aplicație pornește separat, iar React comunică cu API-ul prin proxy.
 2. **PostgreSQL și schema SQL (ziua 1) — implementat și verificat.** PostgreSQL în Docker Compose, conexiune Spring JDBC și Flyway V1 pentru `users` și `contacts`. Verificate: migrarea pe o bază goală de test, regulile SQL și aplicarea în baza locală `netex`. Candidatul poate inspecta cele trei tabele în DBeaver.
-3. **API-ul contactelor (zilele 1–2).** Implementăm listare publică, creare, editare, ștergere, validare și căutare după nume. Păstrăm regulile în service, nu în controller. Verificare: cererile HTTP întorc date și coduri de răspuns corecte.
-4. **Prima interfață React (ziua 2).** Afișăm contactele și legăm formularele și căutarea de API prin cereri asincrone. Verificare: modificările apar în pagină fără refresh complet.
-5. **Conturi și autorizare (ziua 2).** Implementăm înregistrare, login, logout și sesiunea. Protejăm modificările pe server și verificăm autorul la editare/ștergere; conectăm React la aceste fluxuri. Verificare: vizitatorul poate citi, dar nu poate modifica, iar un utilizator nu poate modifica datele altuia.
+3. **API-ul public al contactelor (zilele 1–2).** Implementăm listarea și căutarea după nume, cu controller, service și repository; validăm parametrii cererii. Verificare: cererile HTTP publice întorc date și coduri de răspuns corecte. Crearea, editarea și ștergerea vin în pasul 5, odată cu autentificarea.
+4. **Prima interfață React (ziua 2).** Afișăm contactele și legăm căutarea de API prin cereri asincrone. Verificare: lista și rezultatele căutării se actualizează fără refresh complet.
+5. **Conturi, autorizare și modificarea contactelor (ziua 2).** Implementăm înregistrare, login, logout și sesiunea. Adăugăm creare, editare, ștergere și validarea datelor în backend; păstrăm regulile în service, protejăm modificările pe server și verificăm autorul la editare/ștergere. Legăm formularele React de API prin cereri asincrone. Verificare: utilizatorul autentificat poate crea și modifica propriile contacte, vizitatorul poate doar citi, iar modificarea contactelor altui autor este refuzată.
 6. **Fotografii încărcate de utilizator (ziua 3).** Implementăm upload `multipart/form-data`, validare de fișier, stocare într-un volum Docker și afișare publică. Verificare: imaginea rămâne disponibilă după repornire și poate fi înlocuită la editare.
 7. **Export CSV (ziua 3).** Generăm CSV corect, inclusiv pentru texte cu virgule, ghilimele sau linii noi; includem referința fotografiei. Verificare: fișierul descărcat se deschide corect.
 8. **Evenimentul de înregistrare în Kafka (zilele 3–4).** La crearea contului, API-ul publică un mesaj; `activity-service` îl consumă și produce un rezultat observabil. Verificare: o înregistrare nouă poate fi urmărită de la API până la consumer.
@@ -148,7 +148,7 @@ V1 a fost aplicată în baza locală `netex`: `users` și `contacts` au 0 rându
 
 ## Următorul pas
 
-**Punctul de învățare curent:** candidatul dă Refresh în DBeaver și vede `users`, `contacts`, `flyway_schema_history`. Explicăm fișierul V1 și configurarea profilului `local`. **Următoarea implementare: pasul 3, API-ul contactelor.** Conectăm controllerul, service-ul și repository-ul la schema existentă, păstrând pașii mici. Nu aplica din nou manual CREATE TABLE în DBeaver și nu modifica V1 după aplicare.
+**Punctul de învățare curent:** candidatul inspectează în IntelliJ/DBeaver `users`, `contacts` și `flyway_schema_history` și înțelege fișierul V1. **Următoarea implementare: pasul 3, listarea și căutarea publică a contactelor.** Conectăm controllerul, service-ul și repository-ul la schema existentă, păstrând pașii mici. Crearea, editarea și ștergerea sunt în pasul 5, împreună cu autentificarea și autorizarea. Nu aplica din nou manual CREATE TABLE și nu modifica V1 după aplicare.
 
 ## Întrebări încă deschise
 
