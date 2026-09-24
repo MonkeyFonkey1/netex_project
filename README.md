@@ -182,4 +182,4 @@ With all apps running, check:
 
 ## Next milestone
 
-Step 5 is split into two checkpoints. **5A** replaces the account placeholders with signup, login and logout, establishes sessions and a server-side admin role, and is reviewed before continuing. **5B** adds protected contact creation, editing and deletion in the backend and React. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
+Step 5 is split into checkpoints. **5A.1** implements and verifies the signup, login, logout, session and admin-role backend first; its code is explained before frontend work starts. **5A.2** then replaces the React account placeholders with working forms. **5B** adds protected contact creation, editing and deletion. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
