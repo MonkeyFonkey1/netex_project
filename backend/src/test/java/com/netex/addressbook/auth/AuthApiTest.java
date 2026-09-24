@@ -83,18 +83,19 @@ class AuthApiTest {
         mockMvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
         CsrfSession csrf = csrfSession();
         String anonymousSessionId = csrf.session().getId();
-        String wrong = "{\"email\":\"" + email + "\",\"password\":\"wrong-password\"}";
+        mockMvc.perform(post("/api/auth/login").session(csrf.session())
+                        .param("email", email).param("password", "strong-password"))
+                .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/auth/login").session(csrf.session())
                         .header(csrf.headerName(), csrf.token())
-                        .contentType(MediaType.APPLICATION_JSON).content(wrong))
+                        .param("email", email).param("password", "wrong-password"))
                 .andExpect(status().isUnauthorized());
 
-        String correct = "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"strong-password\"}";
         MvcResult login = mockMvc.perform(post("/api/auth/login").session(csrf.session())
                         .header(csrf.headerName(), csrf.token())
-                        .contentType(MediaType.APPLICATION_JSON).content(correct))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(email))
+                        .param("email", email.toUpperCase())
+                        .param("password", "strong-password"))
+                .andExpect(status().isNoContent())
                 .andReturn();
         MockHttpSession signedIn = (MockHttpSession) login.getRequest().getSession(false);
         assertThat(signedIn).isNotNull();
@@ -137,9 +138,8 @@ class AuthApiTest {
         CsrfSession csrf = csrfSession();
         MvcResult result = mockMvc.perform(post("/api/auth/login").session(csrf.session())
                         .header(csrf.headerName(), csrf.token())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"strong-password\"}"))
-                .andExpect(status().isOk()).andReturn();
+                        .param("email", email).param("password", "strong-password"))
+                .andExpect(status().isNoContent()).andReturn();
         return (MockHttpSession) result.getRequest().getSession(false);
     }
 

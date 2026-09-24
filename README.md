@@ -98,14 +98,15 @@ $headers = @{}
 $headers[$csrf.headerName] = $csrf.token
 $body = @{ email = 'ana@example.com'; password = 'a-long-password' } | ConvertTo-Json
 Invoke-RestMethod http://localhost:8080/api/auth/signup -Method Post -WebSession $browserSession -Headers $headers -ContentType 'application/json' -Body $body
-Invoke-RestMethod http://localhost:8080/api/auth/login -Method Post -WebSession $browserSession -Headers $headers -ContentType 'application/json' -Body $body
+$loginForm = @{ email = 'ana@example.com'; password = 'a-long-password' }
+(Invoke-WebRequest http://localhost:8080/api/auth/login -Method Post -WebSession $browserSession -Headers $headers -ContentType 'application/x-www-form-urlencoded' -Body $loginForm).StatusCode
 Invoke-RestMethod http://localhost:8080/api/auth/me -WebSession $browserSession
 $csrf = Invoke-RestMethod http://localhost:8080/api/auth/csrf -WebSession $browserSession
 $headers[$csrf.headerName] = $csrf.token
 Invoke-RestMethod http://localhost:8080/api/auth/logout -Method Post -WebSession $browserSession -Headers $headers
 ```
 
-Signup creates only a `USER` and does not log in automatically. Login changes the session ID and CSRF token; fetching a fresh token before logout is necessary. `GET /api/auth/me` returns HTTP 401 after logout. The backend hashes passwords using BCrypt and returns only `id`, `email` and `role`. See [the API contract](docs/API.md) for validation and status codes. Publishing a Kafka signup event is a later step.
+Signup creates only a `USER` and does not log in automatically. Login is handled by Spring Security, accepts form fields and returns HTTP 204 with no body; use `/api/auth/me` to read the account. Login changes the session ID and CSRF token, so fetch a fresh token before logout. `GET /api/auth/me` returns HTTP 401 after logout. The backend hashes passwords using BCrypt and returns only `id`, `email` and `role` from signup and `/me`. See [the API contract](docs/API.md) for validation and status codes. Publishing a Kafka signup event is a later step.
 
 ### Terminal 2: activity service
 

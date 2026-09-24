@@ -13,9 +13,9 @@ This document separates working endpoints from planned endpoints. The planned AP
 | contacts-api (8080) | `GET /api/contacts/{id}` | HTTP 200, one contact; HTTP 404 if absent |
 | contacts-api (8080) | `GET /api/auth/csrf` | HTTP 200, CSRF header name and token; creates an anonymous session |
 | contacts-api (8080) | `POST /api/auth/signup` | HTTP 201, regular user; HTTP 400 invalid data; HTTP 409 duplicate email |
-| contacts-api (8080) | `POST /api/auth/login` | HTTP 200, user and session cookie; HTTP 401 invalid credentials |
+| contacts-api (8080) | `POST /api/auth/login` | HTTP 204, empty body and session cookie; HTTP 401 invalid credentials |
 | contacts-api (8080) | `GET /api/auth/me` | HTTP 200, current user; HTTP 401 without login |
-| contacts-api (8080) | `POST /api/auth/logout` | HTTP 204, session invalidated; HTTP 401 without login |
+| contacts-api (8080) | `POST /api/auth/logout` | HTTP 204, session invalidated if present |
 
 The two health paths are Spring Boot Actuator endpoints. Only health is exposed and component details are hidden. Since step 2, the main API's health includes a database connectivity check: a database failure can produce HTTP 503 with `{"status":"DOWN"}`. Flyway applies the SQL schema during startup. The activity service's health still only covers its standalone application, with no SQL or Kafka integration.
 
@@ -45,13 +45,15 @@ CSV contains the name, address and picture URL. Its generator must handle delimi
 
 ## Implemented authentication API (backend only)
 
-The backend accepts JSON for signup and login:
+Signup accepts JSON:
 
 ```json
 {"email":"ana@example.com","password":"a-long-password"}
 ```
 
-The email is trimmed and converted to lowercase. Passwords must contain 8–72 characters and at most 72 UTF-8 bytes, because BCrypt uses at most 72 bytes. The server stores a BCrypt hash, not the original password. Signup does **not** log the user in automatically. All three successful identity responses (signup, login, me) contain only `id`, `email` and `role`, for example `{"id":1,"email":"ana@example.com","role":"USER"}`. A submitted `role` property cannot create an admin: signup always writes `USER`. Duplicate email comparison is case insensitive.
+Login accepts `application/x-www-form-urlencoded` with form fields `email` and `password`. Spring Security processes these fields and returns 204 on success, without a response body. Call `GET /api/auth/me` to obtain the signed-in account. The React frontend will submit this form asynchronously with `fetch`.
+
+The email is trimmed and converted to lowercase. Passwords must contain 8–72 characters and at most 72 UTF-8 bytes, because BCrypt uses at most 72 bytes. The server stores a BCrypt hash, not the original password. Signup does **not** log the user in automatically. Successful signup and `/me` responses contain only `id`, `email` and `role`, for example `{"id":1,"email":"ana@example.com","role":"USER"}`. A submitted `role` property cannot create an admin: signup always writes `USER`. Duplicate email comparison is case insensitive.
 
 The browser first calls `GET /api/auth/csrf` and keeps the session cookie. Its response has `headerName` (`X-CSRF-TOKEN`) and `token`. The browser sends that header on **every** POST, PUT, PATCH or DELETE request, including signup, login and logout. A missing or stale token returns 403. After a successful login, call `GET /api/auth/csrf` again because login rotates the session ID and replaces the token. After logout, fetch another token before the next signup or login. The session cookie is HTTP only; the token comes from the JSON endpoint. Browser requests use the `/api` proxy so the cookie stays on one origin.
 
