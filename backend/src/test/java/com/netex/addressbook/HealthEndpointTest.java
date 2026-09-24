@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,6 +30,6 @@ class HealthEndpointTest {
 
     @Test
     void otherManagementEndpointsAreNotExposed() throws Exception {
-        mockMvc.perform(get("/api/env")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/env").with(user("test"))).andExpect(status().isNotFound());
     }
 }

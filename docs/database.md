@@ -17,15 +17,15 @@ Diagrama există și ca fișiere independente: [imagine PNG](database.png), [ima
 
 ## Stadiu
 
-Pasul 2 este implementat și verificat. `compose.yaml` pornește PostgreSQL 17.11 cu volum persistent. Backendul se conectează prin Spring JDBC, iar Flyway 11.7.2 aplică migrarea V1 la pornire. În baza locală `netex` există `users`, `contacts` și `flyway_schema_history`. Cele două tabele ale aplicației sunt goale; istoricul are migrarea V1 aplicată cu succes.
+`compose.yaml` pornește PostgreSQL 17.11 cu volum persistent. Backendul se conectează prin Spring JDBC, iar Flyway aplică V1 și V2 la pornire. V2 adaugă rolul contului. În baza locală `netex` există `users`, `contacts` și `flyway_schema_history`. Crearea de contacte rămâne pentru pasul 5B.
 
-Definiția executabilă este [V1__create_users_and_contacts.sql](../backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql). Documentația de mai jos corespunde acestei migrări. Funcțiile de contact, conturi și upload vor fi adăugate în pașii următori; existența tabelelor nu înseamnă că API-urile sunt deja implementate.
+Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql) și [V2__add_user_role.sql](../backend/src/main/resources/db/migration/V2__add_user_role.sql). Documentația de mai jos descrie schema obținută după ambele migrări. Înregistrarea și autentificarea backend sunt implementate; operațiile de modificare a contactelor și uploadul urmează.
 
 ## Inventarul tabelelor
 
 | Componentă | Bază / tabel | Scop | Stare |
 | --- | --- | --- | --- |
-| `contacts-api` | `netex.public.users` | Conturile persoanelor care se autentifică | Creat prin V1 |
+| `contacts-api` | `netex.public.users` | Conturile persoanelor care se autentifică | Creat prin V1, rol adăugat prin V2 |
 | `contacts-api` | `netex.public.contacts` | Contactele din agenda publică | Creat prin V1 |
 | Flyway în `contacts-api` | `netex.public.flyway_schema_history` | Evidența modificărilor SQL aplicate | Creat automat de Flyway |
 | `activity-service` | Tabel SQL de istoric, schema încă nestabilită | Evenimentele procesate despre înregistrări și contacte | De proiectat la etapa microserviciului |
@@ -44,6 +44,7 @@ erDiagram
         bigint id PK "generat automat"
         varchar email UK "254 caractere, unic prin lower(email)"
         varchar password_hash "maximum 255 caractere"
+        varchar role "USER sau ADMIN"
         timestamptz created_at "crearea contului"
     }
 
@@ -74,13 +75,14 @@ Un rând reprezintă un cont de acces la aplicație. Acesta este diferit de un c
 | `id` | `BIGINT` | Identificatorul contului | Cheie primară, `GENERATED ALWAYS AS IDENTITY` |
 | `email` | `VARCHAR(254)` | Adresa pentru înregistrare și login | Obligatorie, fără spații la extremități; index unic pe `lower(email)` |
 | `password_hash` | `VARCHAR(255)` | Hashul parolei | Obligatoriu; nu păstrăm parola în clar și nu returnăm hashul către frontend |
+| `role` | `VARCHAR(16)` | Rolul contului | V2: `USER` implicit sau `ADMIN`; obligatoriu, verificat prin `CHECK` |
 | `created_at` | `TIMESTAMPTZ` | Momentul creării contului | Obligatoriu; valoare implicită `CURRENT_TIMESTAMP` |
 
 `BIGINT` este un număr întreg. `VARCHAR(n)` este text cu maximum `n` caractere. `TIMESTAMPTZ` reprezintă un moment în timp; PostgreSQL îl afișează în fusul orar al sesiunii și nu păstrează numele fusului orar original.
 
-Indexul unic `uk_users_email` aplicat pe `lower(email)` refuză, de exemplu, înregistrarea simultană a adreselor `ana@example.com` și `ANA@example.com`. În DBeaver apare în lista de indexuri. Regula `ck_users_email_trimmed` refuză emailurile goale sau cu spații la extremități. La implementarea autentificării, backendul va normaliza și valida emailul înainte de salvare. SQL verifică deja unicitatea independent de codul Java. Hashul nu poate fi un text gol sau format numai din spații.
+Indexul unic `uk_users_email` aplicat pe `lower(email)` refuză, de exemplu, înregistrarea simultană a adreselor `ana@example.com` și `ANA@example.com`. În DBeaver apare în lista de indexuri. Regula `ck_users_email_trimmed` refuză emailurile goale sau cu spații la extremități. Backendul normalizează și validează emailul înainte de salvare. SQL verifică unicitatea independent de codul Java. Hashul nu poate fi un text gol sau format numai din spații. V2 adaugă `ck_users_role`: un rol diferit de `USER` sau `ADMIN` este refuzat de baza de date.
 
-Hashingul transformă parola într-o valoare folosită pentru verificarea autentificării. Spring Security va compara parola introdusă la login cu hashul salvat. Hashingul nu este o criptare pe care aplicația o inversează ca să recupereze parola.
+Hashingul transformă parola într-o valoare folosită pentru verificarea autentificării. Spring Security compară parola introdusă la login cu hashul BCrypt salvat. Hashingul nu este o criptare pe care aplicația o inversează ca să recupereze parola. Înregistrarea publică scrie exclusiv rolul `USER`; un cont `ADMIN` poate fi creat doar prin configurarea separată a serverului.
 
 ## Tabelul contacts
 
@@ -144,13 +146,13 @@ Structura este furnizată de Flyway, nu o definim manual. Coloanele verificate �
 | `execution_time` | `INTEGER` | Durata execuției în milisecunde |
 | `success` | `BOOLEAN` | Dacă migrarea a reușit |
 
-Prima migrare aplicată este `V1__create_users_and_contacts.sql`. Modificările viitoare vor avea migrări noi, de exemplu `V2__add_contact_field.sql`. Nu rescriem V1 după aplicare: Flyway verifică checksumul și semnalează diferențele. În DBeaver, istoricul arată acum versiunea `1`, fișierul V1 și `success = true`.
+Prima migrare este `V1__create_users_and_contacts.sql`; a doua este `V2__add_user_role.sql`. V2 modifică tabelul existent fără să rescrie V1. Flyway verifică checksumul fiecărui fișier și semnalează schimbările ulterioare. În DBeaver, istoricul arată versiunile `1` și `2`, ambele cu `success = true`, după pornirea backendului actualizat.
 
 ## Datele microserviciului
 
 `activity-service` va procesa înregistrări primite prin Kafka și activități despre contacte primite prin HTTP. Am decis să păstrăm rezultatul procesării într-un tabel SQL de istoric deținut de microserviciu, pentru ca viitoarea pagină admin să poată afișa evenimentele. Schema, coloanele și migrarea acelui tabel se vor proiecta la implementarea Kafka; nu există momentan tabele ale microserviciului.
 
-Pentru accesul la pagina admin, tabelul `users` va primi printr-o migrare viitoare un rol (`USER` sau `ADMIN`). V1 și diagrama curentă reprezintă doar schema deja implementată, fără această coloană. Înregistrarea publică va crea numai conturi `USER`; contul admin va fi configurat separat pe server.
+Rolul `USER`/`ADMIN` există acum în V2 și în diagramă. Pagina și API-ul cu istoric admin încă nu sunt implementate; la acest pas backendul protejează prefixul `/api/admin/**`.
 
 La implementare vom completa aici numele bazei/schemei, fiecare tabel, coloanele și modul de identificare a evenimentelor. Legăturile prin ID-uri transmise în evenimente vor fi explicate separat de cheile externe SQL; nu presupunem o bază comună sau chei externe între serviciile independente.
 
@@ -197,7 +199,7 @@ Portul este publicat numai pe `127.0.0.1:5432`, pentru acces local. `netex` este
 5. După mesajul de succes, apasă **Finish**.
 6. În navigator, extinde conexiunea, apoi **Schemas → public → Tables**. În funcție de configurarea navigatorului, poate apărea și nivelul **Databases → netex**.
 
-După prima pornire a backendului, dă **Refresh** pe conexiune sau pe **Tables**. Trebuie să vezi `users`, `contacts` și `flyway_schema_history`. Pentru coloane, deschide tabelul și secțiunea **Columns**. Pentru rânduri, folosește **View Data → All Rows**. `users` și `contacts` sunt goale până implementăm crearea de conturi și contacte. Istoricul Flyway are deja migrarea V1.
+După pornirea backendului, dă **Refresh** pe conexiune sau pe **Tables**. Trebuie să vezi `users`, `contacts` și `flyway_schema_history`. Pentru coloane, deschide tabelul și secțiunea **Columns**; în `users` vei vedea acum și `role`. Pentru rânduri, folosește **View Data → All Rows**. `contacts` este gol până implementăm crearea lor, iar `users` rămâne gol până la prima înregistrare sau până configurezi contul admin. Istoricul Flyway are migrările V1 și V2.
 
 O eroare de conexiune refuzată indică de obicei un container oprit sau un port greșit. O eroare de autentificare cere verificarea utilizatorului și parolei. Schimbarea parolei în `.env` după inițializarea volumului nu schimbă automat parola din PostgreSQL.
 
@@ -221,12 +223,12 @@ După pornirea PostgreSQL, din directorul `backend` rulează în PowerShell:
 
 Valorile folosite sunt `POSTGRES_HOST` (implicit localhost), `POSTGRES_PORT` (5432), `POSTGRES_DB` (netex), `POSTGRES_USER` (netex) și `POSTGRES_PASSWORD` (fără parolă implicită). Modificarea hostului sau portului backendului nu schimbă automat configurația Compose. În Docker, hostul va fi numele serviciului `postgres`.
 
-La prima pornire vezi în log migrarea la versiunea 1. La următoarele porniri, Flyway validează fișierul și raportează că schema este deja actualizată. Backendul nu poate porni complet dacă baza nu este disponibilă sau autentificarea eșuează. `/api/health` include acum și verificarea conexiunii SQL, dar ascunde detaliile interne.
+La prima pornire vezi în log aplicarea V1 și V2. Dacă V1 exista deja, Flyway aplică doar V2. La următoarele porniri, validează fișierele și raportează că schema este actualizată. Backendul nu poate porni complet dacă baza nu este disponibilă sau autentificarea eșuează. `/api/health` include verificarea conexiunii SQL, dar ascunde detaliile interne.
 
 ## Verificări efectuate
 
-`mvnw.cmd verify` a trecut cu 8 teste de backend. Testcontainers pornește un PostgreSQL 17.11 temporar pe un port disponibil, aplică V1 pe o bază goală și îl închide după teste. Nu folosește baza `netex` și nu are nevoie de parola ei. Testele verifică migrarea o singură dată, relația cu autorul, ID-urile și datele generate, unicitatea emailului fără diferențiere de litere mari/mici, autorii inexistenți, ștergerea unui autor cu contacte și numele goale. Cele două teste health au fost păstrate și rulează cu baza de test.
+`mvn verify` a trecut cu 20 de teste de backend. Testcontainers pornește PostgreSQL 17.11 temporar, aplică V1 și V2 pe o bază goală și îl închide după teste. Nu folosește baza `netex` și nu are nevoie de parola ei. Testele verifică migrările, regulile SQL, API-ul public și autentificarea cu roluri și CSRF.
 
-Backendul cu profilul `local` a aplicat apoi V1 în `netex`; verificarea a confirmat 0 utilizatori, 0 contacte și o migrare reușită în istoric. Health a răspuns HTTP 200 cu UP. PostgreSQL rămâne disponibil pentru inspecție în DBeaver.
+Backendul cu profilul `local` a aplicat V2 peste V1 în `netex`; logul a confirmat schema la versiunea 2. Pe un port temporar, health a răspuns `UP`, endpointul CSRF a returnat un token și cookie de sesiune, lista publică a rămas goală, iar `/api/auth/me` fără login a răspuns 401. PostgreSQL rămâne disponibil pentru inspecție în DBeaver.
 
-Următorul pas este API-ul contactelor. Entitățile, repository-urile și operațiile HTTP vor folosi schema existentă; momentan avem conexiunea SQL și migrarea, fără operații de contact implementate.
+Următorul pas este explicarea backendului 5A.1 candidatului, apoi integrarea formularelor React în 5A.2. Operațiile de modificare a contactelor urmează la 5B.

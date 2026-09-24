@@ -33,6 +33,9 @@ class DatabaseSchemaTest {
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM flyway_schema_history WHERE version = '1' AND success", Integer.class))
                 .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history WHERE version = '2' AND success", Integer.class))
+                .isEqualTo(1);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
 
@@ -62,6 +65,18 @@ class DatabaseSchemaTest {
         createUser("ana@example.com");
         assertThatThrownBy(() -> createUser("ANA@example.com"))
                 .isInstanceOf(DuplicateKeyException.class);
+    }
+
+    @Test
+    @Transactional
+    void newAccountsDefaultToUserAndOtherRolesAreRejected() {
+        Long userId = createUser("role@example.com");
+        assertThat(jdbc.queryForObject("SELECT role FROM users WHERE id = ?", String.class, userId))
+                .isEqualTo("USER");
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)",
+                "invalid-role@example.com", "test-only-hash", "OWNER"))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

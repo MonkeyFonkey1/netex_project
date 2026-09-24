@@ -2,7 +2,7 @@
 
 This document separates working endpoints from planned endpoints. The planned API describes the agreed direction; it does not mean the features already exist.
 
-## Implemented endpoints (steps 1–3)
+## Implemented endpoints (steps 1–4 and 5A.1 backend)
 
 | Application | Method and path | Success response |
 | --- | --- | --- |
@@ -11,6 +11,11 @@ This document separates working endpoints from planned endpoints. The planned AP
 | contacts-api (8080) | `GET /api/contacts` | HTTP 200, JSON array of public contacts |
 | contacts-api (8080) | `GET /api/contacts?name=...` | HTTP 200, filtered JSON array |
 | contacts-api (8080) | `GET /api/contacts/{id}` | HTTP 200, one contact; HTTP 404 if absent |
+| contacts-api (8080) | `GET /api/auth/csrf` | HTTP 200, CSRF header name and token; creates an anonymous session |
+| contacts-api (8080) | `POST /api/auth/signup` | HTTP 201, regular user; HTTP 400 invalid data; HTTP 409 duplicate email |
+| contacts-api (8080) | `POST /api/auth/login` | HTTP 200, user and session cookie; HTTP 401 invalid credentials |
+| contacts-api (8080) | `GET /api/auth/me` | HTTP 200, current user; HTTP 401 without login |
+| contacts-api (8080) | `POST /api/auth/logout` | HTTP 204, session invalidated; HTTP 401 without login |
 
 The two health paths are Spring Boot Actuator endpoints. Only health is exposed and component details are hidden. Since step 2, the main API's health includes a database connectivity check: a database failure can produce HTTP 503 with `{"status":"DOWN"}`. Flyway applies the SQL schema during startup. The activity service's health still only covers its standalone application, with no SQL or Kafka integration.
 
@@ -38,19 +43,19 @@ Creation uses `multipart/form-data` with `name`, `address` and `picture`. Update
 
 CSV contains the name, address and picture URL. Its generator must handle delimiters, quotes and line breaks correctly.
 
-## Planned authentication API
+## Implemented authentication API (backend only)
 
-| Method and path | Purpose |
-| --- | --- |
-| `POST /api/auth/signup` | Register with email and password; publish a signup event |
-| `POST /api/auth/login` | Authenticate and establish the session |
-| `POST /api/auth/logout` | Invalidate the session |
-| `GET /api/auth/me` | Retrieve the current user's identity |
-| `GET /api/auth/csrf` | Obtain a CSRF token for subsequent state-changing requests |
+The backend accepts JSON for signup and login:
 
-Passwords will be hashed by Spring Security. Mutating requests will use CSRF protection. Exact authentication payloads will be finalized alongside Spring Security in step 5.
+```json
+{"email":"ana@example.com","password":"a-long-password"}
+```
 
-Public signup will create regular users only. A separate admin account and role will be configured on the server for the activity page; submitting `ADMIN` from the browser will not grant that role.
+The email is trimmed and converted to lowercase. Passwords must contain 8–72 characters and at most 72 UTF-8 bytes, because BCrypt uses at most 72 bytes. The server stores a BCrypt hash, not the original password. Signup does **not** log the user in automatically. All three successful identity responses (signup, login, me) contain only `id`, `email` and `role`, for example `{"id":1,"email":"ana@example.com","role":"USER"}`. A submitted `role` property cannot create an admin: signup always writes `USER`. Duplicate email comparison is case insensitive.
+
+The browser first calls `GET /api/auth/csrf` and keeps the session cookie. Its response has `headerName` (`X-CSRF-TOKEN`) and `token`. The browser sends that header on **every** POST, PUT, PATCH or DELETE request, including signup, login and logout. A missing or stale token returns 403. After a successful login, call `GET /api/auth/csrf` again because login rotates the session ID and replaces the token. After logout, fetch another token before the next signup or login. The session cookie is HTTP only; the token comes from the JSON endpoint. Browser requests use the `/api` proxy so the cookie stays on one origin.
+
+The optional `ADMIN_EMAIL` and `ADMIN_PASSWORD` server settings create an `ADMIN` account at startup if it does not exist. Both must be set together. An existing regular user with that email causes a startup error rather than an automatic promotion. A previously created admin keeps its stored password on later starts; changing the variable does not reset that password. The future admin activity API is protected by `hasRole("ADMIN")` already, but the controller and activity data are not implemented yet. The signup Kafka event belongs to a later step; signup currently saves only to SQL.
 
 ## Planned admin activity API
 
@@ -75,4 +80,4 @@ Only the main API should use this business endpoint. Storage, delivery failure b
 - 409 for a duplicate account email.
 - 413 for an oversized upload.
 
-Only the public contact read endpoints are implemented. The 400 response for an overlong search and the 404 response for a missing contact are verified; the authentication, write, export and upload responses remain planned.
+The public contact read and backend authentication responses are implemented and tested. Contact write, export, image upload, Kafka delivery and the admin activity response remain planned.
