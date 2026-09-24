@@ -28,7 +28,7 @@ Definiția executabilă este [V1__create_users_and_contacts.sql](../backend/src/
 | `contacts-api` | `netex.public.users` | Conturile persoanelor care se autentifică | Creat prin V1 |
 | `contacts-api` | `netex.public.contacts` | Contactele din agenda publică | Creat prin V1 |
 | Flyway în `contacts-api` | `netex.public.flyway_schema_history` | Evidența modificărilor SQL aplicate | Creat automat de Flyway |
-| `activity-service` | Stocarea și tabelele încă nestabilite | Istoricul înregistrărilor și modificărilor contactelor | De proiectat la etapa microserviciului |
+| `activity-service` | Tabel SQL de istoric, schema încă nestabilită | Evenimentele procesate despre înregistrări și contacte | De proiectat la etapa microserviciului |
 
 `netex` este baza de date. `public` este schema, adică un spațiu de organizare a tabelelor în acea bază. `users` și `contacts` sunt numele tabelelor.
 
@@ -148,7 +148,9 @@ Prima migrare aplicată este `V1__create_users_and_contacts.sql`. Modificările 
 
 ## Datele microserviciului
 
-`activity-service` va procesa înregistrări primite prin Kafka și activități despre contacte primite prin HTTP. Persistența lui și coloanele pentru istoricul evenimentelor nu au fost încă proiectate. Nu există momentan tabele ale microserviciului.
+`activity-service` va procesa înregistrări primite prin Kafka și activități despre contacte primite prin HTTP. Am decis să păstrăm rezultatul procesării într-un tabel SQL de istoric deținut de microserviciu, pentru ca viitoarea pagină admin să poată afișa evenimentele. Schema, coloanele și migrarea acelui tabel se vor proiecta la implementarea Kafka; nu există momentan tabele ale microserviciului.
+
+Pentru accesul la pagina admin, tabelul `users` va primi printr-o migrare viitoare un rol (`USER` sau `ADMIN`). V1 și diagrama curentă reprezintă doar schema deja implementată, fără această coloană. Înregistrarea publică va crea numai conturi `USER`; contul admin va fi configurat separat pe server.
 
 La implementare vom completa aici numele bazei/schemei, fiecare tabel, coloanele și modul de identificare a evenimentelor. Legăturile prin ID-uri transmise în evenimente vor fi explicate separat de cheile externe SQL; nu presupunem o bază comună sau chei externe între serviciile independente.
 

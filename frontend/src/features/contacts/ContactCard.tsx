@@ -1,4 +1,4 @@
-import type { Contact } from '../api/contacts'
+import type { Contact } from './contactsApi'
 
 type ContactCardProps = {
   contact: Contact

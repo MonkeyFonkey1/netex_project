@@ -1,0 +1,258 @@
+.hero {
+  padding: 80px 0 64px;
+}
+
+.hero h1 {
+  max-width: 760px;
+  margin: 14px 0 18px;
+  font-size: clamp(2.6rem, 6vw, 4.7rem);
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+}
+
+.hero-description {
+  max-width: 570px;
+  margin: 0;
+  color: #65786b;
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+.directory {
+  overflow: hidden;
+  border: 1px solid #dfe8dc;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(31, 59, 41, 0.055);
+}
+
+.directory-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 20px;
+  padding: 28px 32px 22px;
+}
+
+.section-label {
+  margin: 0;
+  color: #247355;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.directory-heading h2 {
+  margin: 5px 0 0;
+  font-size: 1.65rem;
+  letter-spacing: -0.035em;
+}
+
+.result-count {
+  padding: 7px 11px;
+  border-radius: 99px;
+  background: #eef5ed;
+  color: #276247;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.search-field {
+  position: relative;
+  margin: 0 32px 28px;
+}
+
+.search-field svg {
+  position: absolute;
+  top: 50%;
+  left: 17px;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  color: #718477;
+  pointer-events: none;
+}
+
+.search-field input {
+  width: 100%;
+  height: 50px;
+  padding: 0 16px 0 48px;
+  border: 1px solid #d7e2d8;
+  border-radius: 12px;
+  outline: none;
+  background: #fbfcfa;
+  color: #183329;
+}
+
+.search-field input::placeholder {
+  color: #899a8c;
+}
+
+.search-field input:focus {
+  border-color: #338364;
+  box-shadow: 0 0 0 3px rgba(51, 131, 100, 0.13);
+  background: #fff;
+}
+
+.list-panel {
+  min-height: 230px;
+  border-top: 1px solid #e7ede4;
+}
+
+.message-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 230px;
+  padding: 34px 20px;
+  text-align: center;
+}
+
+.message-state h3 {
+  margin: 14px 0 5px;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.message-state p {
+  margin: 0;
+  color: #718276;
+  line-height: 1.55;
+}
+
+.message-state button {
+  margin-top: 17px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: #1d6a51;
+  color: #fff;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.message-state button:hover {
+  background: #14513e;
+}
+
+.message-state .text-button {
+  background: transparent;
+  color: #1d6a51;
+}
+
+.message-state .text-button:hover {
+  background: #eef5ed;
+}
+
+.message-state button:focus-visible {
+  outline: 3px solid #74bd95;
+  outline-offset: 3px;
+}
+
+.message-icon,
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #eef5ed;
+  color: #277353;
+  font-size: 1.2rem;
+  font-weight: 750;
+}
+
+.message-icon {
+  background: #fff2ef;
+  color: #ab4b36;
+}
+
+.loading-indicator {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 15px;
+  border: 3px solid #e0eee4;
+  border-top-color: #1d6a51;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-indicator { animation: none; }
+}
+
+.contact-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 88px;
+  padding: 17px 32px;
+}
+
+.contact-card + .contact-card {
+  border-top: 1px solid #eef1eb;
+}
+
+.contact-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #e9f3eb;
+  color: #246e51;
+  font-weight: 750;
+}
+
+.contact-details {
+  min-width: 0;
+}
+
+.contact-details h3 {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+}
+
+.contact-details p {
+  margin: 0;
+  color: #718276;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .hero {
+    padding: 55px 0 42px;
+  }
+
+  .hero-description {
+    font-size: 1rem;
+  }
+
+  .directory-heading {
+    padding: 24px 20px 20px;
+  }
+
+  .search-field {
+    margin: 0 20px 22px;
+  }
+
+  .contact-card {
+    padding: 16px 20px;
+  }
+}

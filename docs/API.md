@@ -50,9 +50,19 @@ CSV contains the name, address and picture URL. Its generator must handle delimi
 
 Passwords will be hashed by Spring Security. Mutating requests will use CSRF protection. Exact authentication payloads will be finalized alongside Spring Security in step 5.
 
+Public signup will create regular users only. A separate admin account and role will be configured on the server for the activity page; submitting `ADMIN` from the browser will not grant that role.
+
+## Planned admin activity API
+
+| Method and path | Access | Purpose |
+| --- | --- | --- |
+| `GET /api/admin/activities` | Admin only | List processed signup and contact activity for the admin page |
+
+The browser will call the main API. The main API will authorize the session and obtain the activity history from `activity-service` over HTTP. The current `/admin/activity` frontend route is only a placeholder and does not call this API.
+
 ## Planned activity service
 
-`POST /internal/activities` will accept contact activity from the main API over HTTP. A Kafka consumer in the same service will process signup events.
+`POST /internal/activities` will accept contact activity from the main API over HTTP. A Kafka consumer in the same service will process signup events. The service will persist the processed events and provide an internal read endpoint for the main API's admin activity route.
 
 Only the main API should use this business endpoint. Storage, delivery failure behavior and the internal access configuration must be defined when the activity feature is implemented. The current health endpoint is not the business interaction required by the assignment.
 

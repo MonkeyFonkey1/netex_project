@@ -2,13 +2,15 @@
 
 A Java 25 / Spring Boot address book with a React + TypeScript frontend.
 
-**Current milestone: steps 1–4 implemented.** Docker Compose starts PostgreSQL, and the main API connects to it using Spring JDBC. Flyway creates the users and contacts tables on startup. The main API publicly lists and searches contacts, and retrieves one contact by ID. React displays the public list and searches by name through the Vite development proxy. Contact writes, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
+**Current milestone: steps 1–4 implemented.** Docker Compose starts PostgreSQL, and the main API connects to it using Spring JDBC. Flyway creates the users and contacts tables on startup. The main API publicly lists and searches contacts, and retrieves one contact by ID. React displays the public list and searches by name through the Vite development proxy. The frontend also has client-side navigation with placeholder account and admin activity pages. Contact writes, authentication, Kafka, the admin activity API and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
 
 ## Repository layout
 
 ```text
 backend/           contacts-api: Spring Boot, Maven
 frontend/          React, TypeScript, Vite
+frontend/src/features/  contact UI and future auth/admin UI, grouped by feature
+frontend/src/navigation/  client-side routes and shared header
 microservice/      activity-service: Spring Boot, Maven
 docs/API.md        implemented and planned HTTP endpoints
 docs/database.md   table inventory, relationship diagram and DBeaver walkthrough
@@ -113,6 +115,8 @@ npm run dev
 
 Open <http://localhost:5173>. The page loads public contacts from the backend and searches by name as you type, without refreshing the page. It shows **No contacts yet** until a contact is created in a later step. If the backend is unavailable, start it and use **Try again**.
 
+The header navigates to `/login` and `/signup`, which currently explain that account access is not available yet. `/admin/activity` is also a placeholder route for the planned admin activity history; it shows no private data and is not linked from the public header. The real admin page will require server-side authorization, not just a hidden navigation link.
+
 `npm ci` is needed after cloning or changing dependencies, not before every run. Stop each application with Ctrl+C in its terminal.
 
 ## Ports and proxy
@@ -173,8 +177,9 @@ With all apps running, check:
 - <http://localhost:5173/api/health> returns the same response through Vite.
 - `GET http://localhost:8080/api/contacts` returns HTTP 200 and `[]` before any contacts are created.
 - The page shows **No contacts yet** with an empty database. Searching for a name shows **No matching contacts**, and **Clear search** returns to the full list without a page reload.
+- The header links open `/login` and `/signup` without a full page reload. Opening `/admin/activity` directly shows only the placeholder.
 - If you stop the main API and reload the page, it offers **Try again**; after restarting the API, that button loads the list.
 
 ## Next milestone
 
-Step 5 adds signup, login, logout and protected contact creation, editing and deletion in the backend and React. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
+Step 5 replaces the account placeholders with signup, login and logout, then adds protected contact creation, editing and deletion in the backend and React. It will also establish a server-side admin role for the later activity page. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
