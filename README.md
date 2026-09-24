@@ -17,6 +17,7 @@ docs/database.md   table inventory, relationship diagram and DBeaver walkthrough
 docs/database.svg  visual database diagram (implemented backend schema)
 docs/database.png  image preview of the database diagram
 docs/database.drawio editable database diagram for draw.io / diagrams.net
+output/pdf/pasul-1-baza-de-date-si-inregistrare.pdf  learning guide for database and signup (Romanian)
 compose.yaml       local PostgreSQL container and persistent volume
 PROJECT_CONTEXT.md development decisions and progress (Romanian)
 ```
@@ -206,3 +207,5 @@ With all apps running, check:
 ## Next milestone
 
 Step 5 is split into checkpoints. **5A.1** implements and verifies the signup, login, logout, session and admin-role backend first; its code is explained before frontend work starts. **5A.2** then replaces the React account placeholders with working forms. **5B** adds protected contact creation, editing and deletion. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
+
+For the first learning checkpoint in 5A.1, use the [Romanian database and signup guide](output/pdf/pasul-1-baza-de-date-si-inregistrare.pdf). It follows the actual code at commit `44618e2`, includes a visual request flow and DBeaver exercise, and is meant to be studied in short sessions. The five learning checkpoints are recorded in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).

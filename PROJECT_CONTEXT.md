@@ -165,6 +165,18 @@ V1 a fost aplicată în baza locală `netex`: `users` și `contacts` au 0 rându
 
 **Punctul de învățare curent:** explică backendul 5A.1 candidatului în ordinea implementării și cu exemple din codul real: V2 și `users.role`, dependențele Security/Validation, `AppUser`/`UserRepository`, DTO-urile, `SignupService`, `UserDetailsService`/`PasswordEncoder`, loginul/logoutul configurate în `SecurityConfig`, sesiunea și cookie-ul, `SessionController` pentru `/me` și `/csrf`, rolul admin și testele. Explică faptul că loginul primește formular URL encoded, răspunde 204, iar `/me` întoarce JSON. Arată în DBeaver coloana `users.role` și V2 în `flyway_schema_history` dacă cere. **Următoarea implementare, numai după explicația backendului: 5A.2, formularele React.** Abia apoi 5B (operațiile de creare, editare și ștergere). Ruta admin cu date reale va fi finalizată după Kafka și istoricul microserviciului. Nu aplica din nou manual CREATE TABLE și nu modifica V1/V2 după aplicare.
 
+## Plan de învățare pentru backendul 5A.1 (cinci pași)
+
+Acești pași sunt ordinea de **învățare**, nu pașii de implementare ai întregului proiect. Candidatul vrea să înțeleagă codul real în sesiuni scurte, fără a trece la React până când poate explica backendul.
+
+1. **Baza de date și înregistrarea:** `users`, Flyway V1/V2, cererea JSON, `SignupRequest`, `SignupController`, `SignupService`, BCrypt, `UserRepository`, `AppUser` și `UserResponse`. Ghidul de lucru verificat este `output/pdf/pasul-1-baza-de-date-si-inregistrare.pdf` (10 pagini, bazat pe commitul `44618e2`). Include comenzi PowerShell, inspecție vizuală în DBeaver și întrebări de recapitulare. **Acesta este pasul curent de studiu; existența PDF-ului nu înseamnă că utilizatorul l-a parcurs deja.**
+2. **Loginul:** ce citește codul nostru din SQL și ce verifică mecanismul integrat Spring Security.
+3. **Sesiunea, cookie-ul și CSRF:** ce păstrează serverul, ce trimite browserul și de ce cererile de modificare au nevoie de token.
+4. **Permisiunile:** acces public, utilizator autentificat și rolul `ADMIN`, verificate pe server.
+5. **Testele:** urmărirea unei verificări complete și explicarea fluxului cu propriile cuvinte, ca la interviu.
+
+Pentru fiecare pas: citește fișierele existente în ordinea fluxului, urmărește o cerere concretă, verifică efectul practic și apoi explică fără ghid. Nu crea exemple fictive de cod în locul explicației codului implementat.
+
 ## Întrebări încă deschise
 
 - Numărul de ore disponibile zilnic și data exactă a predării nu au fost precizate.
@@ -188,6 +200,7 @@ V1 a fost aplicată în baza locală `netex`: `users` și `contacts` au 0 rându
 - 2026-09-24: candidatul a stabilit ordinea din 5A: mai întâi backendul complet și verificat (5A.1), apoi explicația backendului, apoi frontendul (5A.2). Nu se încep formularele React în aceeași etapă cu implementarea backendului.
 - 2026-09-24: pasul 5A.1 a implementat și verificat autentificarea numai în backend. V2 a adăugat rolurile, iar Spring Security oferă signup, login, logout, `/me`, CSRF și sesiune HTTP. Adminul opțional se creează din configurarea serverului. 20 de teste au trecut; migrarea V2 și endpointurile publice au fost verificate și pe baza locală. Diagramele, API-ul, README și `.env.example` au fost actualizate. Urmează explicația backendului candidatului, apoi 5A.2.
 - 2026-09-24: la cererea candidatului de a reduce codul dificil de învățat, loginul și logoutul au fost mutate la mecanismele integrate Spring Security. Au fost eliminate controllerul și DTO-ul de login, precum și salvarea manuală a sesiunii; loginul folosește acum form fields și returnează 204. Cele 20 de teste backend continuă să treacă. Nu a început frontendul 5A.2.
+- 2026-09-24: candidatul a fixat cinci pași de învățare pentru backendul 5A.1. A fost creat și verificat vizual un PDF de 10 pagini pentru pasul 1 (baza de date și înregistrarea), cu extrase din codul real, fluxul HTTP→SQL, exercițiu PowerShell/DBeaver și întrebări de recapitulare. Pasul 1 este pregătit pentru studiu, nu marcat ca deja înțeles.
 
 ## Instrucțiune pentru un alt chat AI
 
