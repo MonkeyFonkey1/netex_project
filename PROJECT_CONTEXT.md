@@ -1,6 +1,6 @@
 # Proiect Netex: agenda de contacte
 
-Ultima actualizare: 23 septembrie 2026
+Ultima actualizare: 24 septembrie 2026
 
 ## Scopul acestui fișier
 
@@ -104,8 +104,8 @@ Ordinea se poate ajusta dacă apare un blocaj, dar nu eliminăm cerințe obligat
 
 1. **Pregătirea proiectului (ziua 1) — finalizat.** Git, cele trei aplicații independente, contractul minim în `docs/API.md` și comenzile de dezvoltare în `README.md`. Verificat: fiecare aplicație pornește separat, iar React comunică cu API-ul prin proxy.
 2. **PostgreSQL și schema SQL (ziua 1) — implementat și verificat.** PostgreSQL în Docker Compose, conexiune Spring JDBC și Flyway V1 pentru `users` și `contacts`. Verificate: migrarea pe o bază goală de test, regulile SQL și aplicarea în baza locală `netex`. Candidatul poate inspecta cele trei tabele în DBeaver.
-3. **API-ul public al contactelor (zilele 1–2).** Implementăm listarea și căutarea după nume, cu controller, service și repository; validăm parametrii cererii. Verificare: cererile HTTP publice întorc date și coduri de răspuns corecte. Crearea, editarea și ștergerea vin în pasul 5, odată cu autentificarea.
-4. **Prima interfață React (ziua 2).** Afișăm contactele și legăm căutarea de API prin cereri asincrone. Verificare: lista și rezultatele căutării se actualizează fără refresh complet.
+3. **API-ul public al contactelor (zilele 1–2) — finalizat.** Listarea și căutarea după nume au controller, service și repository; parametrii sunt validați. Cererile HTTP publice și codurile de răspuns au fost verificate. Crearea, editarea și ștergerea vin în pasul 5, odată cu autentificarea.
+4. **Prima interfață React (ziua 2) — finalizată.** Lista publică și căutarea după nume folosesc cereri HTTP asincrone. Lista și rezultatele se actualizează fără refresh complet; au fost verificate în browser cu baza goală și cu două contacte temporare șterse după test.
 5. **Conturi, autorizare și modificarea contactelor (ziua 2).** Implementăm înregistrare, login, logout și sesiunea. Adăugăm creare, editare, ștergere și validarea datelor în backend; păstrăm regulile în service, protejăm modificările pe server și verificăm autorul la editare/ștergere. Legăm formularele React de API prin cereri asincrone. Verificare: utilizatorul autentificat poate crea și modifica propriile contacte, vizitatorul poate doar citi, iar modificarea contactelor altui autor este refuzată.
 6. **Fotografii încărcate de utilizator (ziua 3).** Implementăm upload `multipart/form-data`, validare de fișier, stocare într-un volum Docker și afișare publică. Verificare: imaginea rămâne disponibilă după repornire și poate fi înlocuită la editare.
 7. **Export CSV (ziua 3).** Generăm CSV corect, inclusiv pentru texte cu virgule, ghilimele sau linii noi; includem referința fotografiei. Verificare: fișierul descărcat se deschide corect.
@@ -146,11 +146,13 @@ V1 a fost aplicată în baza locală `netex`: `users` și `contacts` au 0 rându
 
 **Pasul 3 este implementat și verificat.** `contact/` conține `ContactController`, `ContactService` și `ContactRepository` cu Spring JDBC. `GET /api/contacts` listează public, ordonat după ID; parametrul opțional `name` caută un fragment fără diferență între litere mari și mici. Lipsa parametrului sau un text gol după eliminarea spațiilor listează toate contactele, iar o căutare de peste 255 de caractere primește 400. `GET /api/contacts/{id}` întoarce un contact sau 404. Căutarea folosește parametri SQL și tratează `%` și `_` ca text obișnuit. `Contact` reprezintă rândul intern, iar `ContactResponse` expune momentan doar `id`, `name` și `address`; calea fișierului și autorul rămân interne. Șase teste HTTP cu MockMvc și PostgreSQL temporar acoperă lista goală, ordinea și câmpurile publice, căutarea, caracterele speciale, lungimea invalidă și ID-ul absent. Împreună cu testele precedente, backendul are 14 teste verificate. Backendul a fost pornit temporar cu profilul `local`: lista și căutarea au întors HTTP 200 cu `[]`, iar un ID inexistent a întors 404. Backendul de probă a fost oprit; PostgreSQL local a rămas pornit.
 
+**Pasul 4 este implementat și verificat.** `frontend/src/api/contacts.ts` trimite `GET /api/contacts` cu parametrul opțional `name` prin proxy-ul Vite. `App.tsx` păstrează textul căutării, contactele și starea cererii; întârzie cu 250 ms căutarea în timpul tastării și anulează cererile vechi. `ContactCard.tsx` afișează numele și adresa fiecărui rezultat. Interfața are mesaje pentru încărcare, listă goală, zero rezultate și eroare cu reîncercare. Buildul TypeScript și lintul trec. În browser s-au verificat lista goală, două contacte temporare, filtrarea fără diferență între litere mari și mici, golirea căutării și recuperarea după oprirea/repornirea backendului. Cele două contacte și utilizatorul temporar au fost șterse; baza locală a rămas fără date demo. Nu există încă formular de creare, editare sau ștergere.
+
 **Nu sunt implementate încă** crearea/editarea/ștergerea contactelor, autentificarea, fotografiile, CSV, Kafka, comunicarea HTTP de business sau rularea întregului sistem prin Compose. Nu folosim JPA; repository-ul folosește Spring JDBC. Health-ul microserviciului nu îndeplinește singur cerința de interacțiune HTTP dintre servicii. Nu marca aceste cerințe ca finalizate înainte de implementare și verificare.
 
 ## Următorul pas
 
-**Punctul de învățare curent:** explică pasul 3 candidatului: traseul cererii `GET /api/contacts?name=...` prin controller, service, repository, PostgreSQL și înapoi ca JSON; diferența dintre `Contact` intern și `ContactResponse` public; cum testele creează temporar date fără să atingă baza locală. În baza locală lista rămâne `[]` până la implementarea creării conturilor și contactelor. **Următoarea implementare: pasul 4, afișarea listei și căutării în React.** Crearea, editarea și ștergerea sunt în pasul 5, împreună cu autentificarea și autorizarea. Nu aplica din nou manual CREATE TABLE și nu modifica V1 după aplicare.
+**Punctul de învățare curent:** explică pasul 4 candidatului, fișier cu fișier: `contacts.ts`, `ContactCard.tsx`, `App.tsx` și CSS; urmărește cererea din inputul de căutare prin React, `fetch`, proxy-ul Vite și API, apoi răspunsul în listă. Explică de ce folosim `AbortController` și întârzierea de 250 ms. În baza locală lista rămâne `[]` până la implementarea creării conturilor și contactelor. **Următoarea implementare: pasul 5, autentificarea și modificarea contactelor.** Explică pasul 4 înainte de a începe pasul 5 dacă utilizatorul dorește să înțeleagă codul. Nu aplica din nou manual CREATE TABLE și nu modifica V1 după aplicare.
 
 ## Întrebări încă deschise
 
@@ -169,6 +171,7 @@ V1 a fost aplicată în baza locală `netex`: `users` și `contacts` au 0 rându
 - 2026-09-23: diagrama a fost salvată și în fișiere independente: `docs/database.svg` și `docs/database.png` pentru vizualizare și `docs/database.drawio` pentru editare în draw.io / diagrams.net. XML-ul a fost verificat, iar imaginea PNG a fost randată local din SVG și inspectată vizual. Păstrează aceste fișiere sincronizate cu documentația și cu viitoarele migrări. Starea rămâne schemă propusă.
 - 2026-09-23: pasul 2 a fost implementat: Spring JDBC, driver PostgreSQL, Flyway și migrarea V1, profil local pentru citirea configurației, 8 teste cu PostgreSQL temporar. Migrarea a fost aplicată și verificată în netex. Documentația și diagramele au fost aliniate cu schema implementată; API-ul contactelor rămâne pasul următor.
 - 2026-09-23: pasul 3 a adăugat API-ul public de listare, căutare și citire după ID, cu controller, service, repository și DTO public. Cele 14 teste backend au trecut cu PostgreSQL temporar; nu au fost create contacte demo în baza locală. Documentația API și README au fost actualizate. Urmează explicarea codului și apoi React.
+- 2026-09-24: pasul 4 a înlocuit pagina de health din React cu lista publică și căutarea asincronă. Buildul, lintul și verificarea în browser au trecut, inclusiv două contacte temporare, eroarea când backendul e oprit și reîncercarea după repornire. Datele temporare au fost șterse. Urmează explicarea frontendului și pasul 5.
 
 ## Instrucțiune pentru un alt chat AI
 

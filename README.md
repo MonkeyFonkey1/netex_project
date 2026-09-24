@@ -2,7 +2,7 @@
 
 A Java 25 / Spring Boot address book with a React + TypeScript frontend.
 
-**Current milestone: steps 1–3 implemented.** Docker Compose starts PostgreSQL, and the main API connects to it using Spring JDBC. Flyway creates the users and contacts tables on startup. The main API publicly lists and searches contacts, and retrieves one contact by ID. Both Java applications run independently, and the frontend checks the main API through a development proxy. Contact writes, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
+**Current milestone: steps 1–4 implemented.** Docker Compose starts PostgreSQL, and the main API connects to it using Spring JDBC. Flyway creates the users and contacts tables on startup. The main API publicly lists and searches contacts, and retrieves one contact by ID. React displays the public list and searches by name through the Vite development proxy. Contact writes, authentication, Kafka and business HTTP interaction remain planned; Compose currently runs PostgreSQL only.
 
 ## Repository layout
 
@@ -111,7 +111,7 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:5173>. The page should show **Server connected** when the main API is running. Use **Check again** after starting or restarting the backend.
+Open <http://localhost:5173>. The page loads public contacts from the backend and searches by name as you type, without refreshing the page. It shows **No contacts yet** until a contact is created in a later step. If the backend is unavailable, start it and use **Try again**.
 
 `npm ci` is needed after cloning or changing dependencies, not before every run. Stop each application with Ctrl+C in its terminal.
 
@@ -123,7 +123,7 @@ Open <http://localhost:5173>. The page should show **Server connected** when the
 | activity-service | 8081 | `microservice/src/main/resources/application.properties` |
 | React / Vite | 5173 | `frontend/vite.config.ts` |
 
-The browser requests `/api/health` from Vite on port 5173. Vite forwards `/api/*` to the main API on port 8080. The applications run in separate processes, while the browser uses one origin. This will also simplify session cookies later.
+The browser requests `/api/contacts` from Vite on port 5173. Vite forwards `/api/*` to the main API on port 8080. The applications run in separate processes, while the browser uses one origin. This will also simplify session cookies later.
 
 Vite refuses to silently switch ports when 5173 is occupied. Stop the conflicting process or change the port deliberately.
 
@@ -172,8 +172,9 @@ With all apps running, check:
 - Both Java health endpoints return HTTP 200 with `{"status":"UP"}`.
 - <http://localhost:5173/api/health> returns the same response through Vite.
 - `GET http://localhost:8080/api/contacts` returns HTTP 200 and `[]` before any contacts are created.
-- The page reports a connected server. If you stop the main API and click **Check again**, it reports an unavailable server.
+- The page shows **No contacts yet** with an empty database. Searching for a name shows **No matching contacts**, and **Clear search** returns to the full list without a page reload.
+- If you stop the main API and reload the page, it offers **Try again**; after restarting the API, that button loads the list.
 
 ## Next milestone
 
-Step 4 connects a first React contacts list and search form to these public endpoints. Contact writes and authentication follow in step 5. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
+Step 5 adds signup, login, logout and protected contact creation, editing and deletion in the backend and React. Photo paths are temporarily nullable until the upload feature is implemented. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full plan.
