@@ -20,6 +20,7 @@ This document separates working endpoints from planned endpoints. The planned AP
 | contacts-api (8080) | `DELETE /api/contacts/{id}/picture` | HTTP 204, empty body; author or ADMIN |
 | contacts-api (8080) | `POST /api/auth/signup` | HTTP 201, regular user; HTTP 400 invalid data; HTTP 409 duplicate email |
 | contacts-api (8080) | `POST /api/auth/login` | HTTP 204, empty body and session cookie; HTTP 401 invalid credentials |
+| contacts-api (8080) | `GET /api/auth/csrf` | HTTP 200, CSRF token and header name; public |
 | contacts-api (8080) | `GET /api/auth/me` | HTTP 200, current user; HTTP 401 without login |
 | contacts-api (8080) | `POST /api/auth/logout` | HTTP 204, session invalidated if present |
 | activity-service (8081) | `POST /internal/contact-events` | HTTP 204, contact event stored; HTTP 400 invalid data |
@@ -58,7 +59,7 @@ The server accepts files up to 5 MiB and at most 25 million pixels. It checks th
 
 `GET /api/contacts/export?name=...` is public and uses the same optional, case-insensitive name filter and 255-character limit as `GET /api/contacts`. It returns `text/csv; charset=UTF-8` with `Content-Disposition: attachment; filename="contacts.csv"`. The file has columns `name,address,picture_url` in ascending contact-ID order. `picture_url` is the public, root-relative photo URL used by the JSON API, or an empty cell when there is no photo. An empty result still downloads a header-only file.
 
-The CSV starts with a UTF-8 BOM for spreadsheet compatibility. Every nonempty field is quoted; embedded quotes are doubled, so commas and line breaks inside a name or address remain part of that field. Rows end with CRLF. The React **Export CSV** link downloads all contacts or the contacts matching the current search without requiring login.
+The CSV starts with a UTF-8 BOM for spreadsheet compatibility. Every nonempty field is quoted; embedded quotes are doubled, so commas and line breaks inside a name or address remain part of that field. User text that could start a spreadsheet formula is prefixed with an apostrophe in the export. Rows end with CRLF. The React **Export CSV** link downloads all contacts or the contacts matching the current search without requiring login.
 
 ## Implemented authentication API
 
@@ -72,13 +73,13 @@ Login accepts `application/x-www-form-urlencoded` with form fields `email` and `
 
 The email is trimmed and converted to lowercase. Passwords must contain 8–72 characters and at most 72 UTF-8 bytes, because BCrypt uses at most 72 bytes. The server stores a BCrypt hash, not the original password. Signup does **not** log the user in automatically. Successful signup and `/me` responses contain only `id`, `email` and `role`, for example `{"id":1,"email":"ana@example.com","role":"USER"}`. A submitted `role` property cannot create an admin: signup always writes `USER`. Duplicate email comparison is case insensitive.
 
-The browser sends signup and login requests directly. After successful login, Spring Security associates the account with an HTTP session; the browser sends its session cookie on later requests. Browser requests use the `/api` proxy so the cookie stays on one origin. CSRF protection is deliberately disabled in this interview-project baseline to keep the flow small; authenticated requests made with a cookie are therefore exposed to cross-site request forgery. The planned security-hardening branch can add CSRF protection after the required application works end to end.
+The browser sends signup and login requests directly. After successful login, Spring Security associates the account with an HTTP session; the browser sends its session cookie on later requests. Browser requests use the `/api` proxy so the cookie stays on one origin. For POST, PUT and DELETE, React first calls the public `GET /api/auth/csrf` endpoint and sends the returned `token` as an `X-CSRF-TOKEN` header. Spring Security compares it with the token stored in the browser's session. A request without a valid token returns 403 before the controller runs. Login and logout clear the old token; React obtains a fresh one for the next write. After a backend restart, a write that receives 401 also clears the displayed login state.
 
 The optional `ADMIN_EMAIL` and `ADMIN_PASSWORD` server settings create an `ADMIN` account at startup if it does not exist. Both must be set together. An existing regular user with that email causes a startup error rather than an automatic promotion. A previously created admin keeps its stored password on later starts; changing the variable does not reset that password. `/api/admin/activities` is protected by `hasRole("ADMIN")` on the server.
 
 The local profile reads these settings from the root `.env`; Compose passes them into the Docker backend. They are not sent from the browser. Login as the configured admin and call `/api/auth/me` to see `"role":"ADMIN"`. React shows the **Activity** navigation link only for an admin and guards direct access to `/admin/activity`; the server-side check remains authoritative.
 
-After a successful SQL insert, public signup sends a JSON event to Kafka topic `user-signups`. Example payload: `{"userId":1,"email":"ana@example.com","signedUpAt":"2026-09-26T10:00:00Z"}`. The message excludes the password and its hash. `activity-service` consumes it and inserts a row in `activity.signup_events`; a repeated delivery for the same `userId` leaves one row. Signup responds 201 for the saved account without waiting for a Kafka acknowledgement. If Kafka is unavailable, the account remains created and the publisher logs the failure; this baseline has no durable retry or outbox.
+Public signup saves the user and an event in `public.event_outbox` in one SQL transaction. The worker sends the JSON event to Kafka topic `user-signups` afterward. Example payload: `{"userId":1,"email":"ana@example.com","signedUpAt":"2026-09-26T10:00:00Z"}`. The message excludes the password and its hash. `activity-service` consumes it and inserts a row in `activity.signup_events`; a repeated delivery for the same `userId` leaves one row. Signup responds 201 without waiting for Kafka. If Kafka is unavailable, the pending outbox row remains and is retried later.
 
 ## Admin activity API
 
@@ -90,7 +91,7 @@ The browser calls the main API, which checks the session and role before request
 
 ## Implemented contact activity over HTTP
 
-After successful contact creation, editing or deletion, the main API sends `POST /internal/contact-events` to `activity-service`. Picture replacement and removal also send `UPDATED` when the picture changes. The body is JSON:
+After successful contact creation, editing or deletion, the backend queues an event and its worker sends `POST /internal/contact-events` to `activity-service`. Picture replacement and removal also queue `UPDATED` when the picture changes. The body is JSON:
 
 ```json
 {"eventId":"311ba7ec-4545-44ed-9642-ef68793bd119","contactId":1,"actorUserId":2,"action":"CREATED","occurredAt":"2026-09-26T10:00:00Z"}
@@ -98,7 +99,7 @@ After successful contact creation, editing or deletion, the main API sends `POST
 
 `action` is `CREATED`, `UPDATED` or `DELETED`. The activity service validates the fields, inserts into `activity.contact_events` and returns 204. A repeated `eventId` is ignored. There is no SQL foreign key from activity to contacts or users because contacts may be deleted and the microservice owns its own table. In Compose, the Docker backend calls `http://microservice:8081` on the internal network; local Java calls `localhost:8081`. The internal endpoint has no service authentication, and Compose does not publish the microservice port to the host.
 
-Delivery is best effort: the contact database operation succeeds first; if the activity service cannot be reached, the main API logs the failure and does not retry. The browser never sends these events or calls the activity service. In the complete Docker setup, the microservice is reachable only within Compose. When run as a local development process, its endpoint is available on localhost:8081 without a service credential; the main API's admin endpoint remains protected.
+The contact change and its outbox row are saved in one SQL transaction. The worker sends pending HTTP events and deletes an outbox row after a successful response; failures are retried after five seconds and survive backend restarts. Repeated delivery uses the same `eventId`, which the microservice ignores after the first insert. The browser never sends these events or calls the activity service. In the complete Docker setup, the microservice is reachable only within Compose. When run as a local development process, its endpoint is available on localhost:8081 without a service credential; the main API's admin endpoint remains protected.
 
 ## Planned error behavior
 

@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.outbox.enabled=false")
 @AutoConfigureMockMvc
 @Import(PostgresTestConfiguration.class)
 @Transactional
@@ -132,6 +132,19 @@ class ContactApiTest {
                         StandardCharsets.UTF_8)).isEqualTo("\uFEFFname,address,picture_url\r\n"));
         mockMvc.perform(get("/api/contacts/export").param("name", "a".repeat(256)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void exportPreventsSpreadsheetFormulasInUserText() throws Exception {
+        long authorId = createUser();
+        createContact(authorId, "=HYPERLINK(\"https://example.com\")", " \t@SUM(1,2)");
+
+        var result = mockMvc.perform(get("/api/contacts/export"))
+                .andExpect(status().isOk()).andReturn();
+
+        assertThat(new String(result.getResponse().getContentAsByteArray(), StandardCharsets.UTF_8))
+                .contains("\"'=HYPERLINK(\"\"https://example.com\"\")\"")
+                .contains("\"' \t@SUM(1,2)\"");
     }
 
     private long createUser() {

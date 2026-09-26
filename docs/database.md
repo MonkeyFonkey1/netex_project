@@ -19,9 +19,9 @@ Diagrama există și ca fișiere independente: [imagine PNG](database.png), [ima
 
 ## Stadiu
 
-`compose.yaml` pornește aplicația completă: PostgreSQL 17.11, Kafka, backendul, microserviciul și frontendul. Volumele păstrează datele PostgreSQL, Kafka și fotografiile după repornire. Backendul se conectează prin Spring JDBC, iar Flyway aplică V1 și V2 în schema `public`. Microserviciul aplică propriile migrări V1 și V2 în schema `activity`. În baza locală `netex` există tabelele aplicației și câte un istoric Flyway pentru fiecare schemă.
+`compose.yaml` pornește aplicația completă: PostgreSQL 17.11, Kafka, backendul, microserviciul și frontendul. Volumele păstrează datele PostgreSQL, Kafka și fotografiile după repornire. Backendul se conectează prin Spring JDBC, iar Flyway aplică V1, V2 și V3 în schema `public`. Microserviciul aplică propriile migrări V1 și V2 în schema `activity`. În baza locală `netex` există tabelele aplicației și câte un istoric Flyway pentru fiecare schemă.
 
-Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql), [V2__add_user_role.sql](../backend/src/main/resources/db/migration/V2__add_user_role.sql) și [V1__create_signup_events.sql](../microservice/src/main/resources/db/migration/V1__create_signup_events.sql). Pasul 6 nu a schimbat schema: coloana `picture_path` exista deja în V1 din backend.
+Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql), [V2__add_user_role.sql](../backend/src/main/resources/db/migration/V2__add_user_role.sql), [V3__create_event_outbox.sql](../backend/src/main/resources/db/migration/V3__create_event_outbox.sql) și migrațiile microserviciului din `microservice/src/main/resources/db/migration/`. Pasul 6 nu a schimbat schema: coloana `picture_path` exista deja în V1 din backend.
 
 ## Inventarul tabelelor
 
@@ -29,6 +29,7 @@ Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src
 | --- | --- | --- | --- |
 | `contacts-api` | `netex.public.users` | Conturile persoanelor care se autentifică | Creat prin V1, rol adăugat prin V2 |
 | `contacts-api` | `netex.public.contacts` | Contactele din agenda publică | Creat prin V1 |
+| `contacts-api` | `netex.public.event_outbox` | Evenimentele Kafka/HTTP care așteaptă livrarea sau reîncercarea | Creat prin V3 |
 | Flyway în `contacts-api` | `netex.public.flyway_schema_history` | Evidența modificărilor SQL aplicate | Creat automat de Flyway |
 | `activity-service` | `netex.activity.signup_events` | Înregistrările procesate din Kafka | Creat prin V1 a microserviciului |
 | `activity-service` | `netex.activity.contact_events` | Modificările contactelor primite prin HTTP | Creat prin V2 a microserviciului |
@@ -37,6 +38,22 @@ Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src
 `netex` este baza de date. `public` și `activity` sunt scheme, adică spații separate de organizare a tabelelor în aceeași bază fizică locală. `contacts-api` deține tabelele din `public`; `activity-service` deține tabelele din `activity`. Fiecare aplicație rulează propriile migrări Flyway. Separarea aceasta ține codul și datele logic distincte, deși configurația simplă de dezvoltare folosește același server și același cont SQL.
 
 Frontendul folosește API-ul Java și nu are o conexiune directă la SQL. Fotografiile sunt fișiere în directorul local `uploads/` sau în volumul Docker `picture_data`; în SQL păstrăm numai numele generat de server. Kafka transportă evenimentele și nu este un tabel SQL.
+
+## Tabelul public.event_outbox
+
+Un rând este un eveniment salvat în aceeași tranzacție cu înregistrarea unui cont sau schimbarea unui contact. Workerul backend îl trimite către Kafka sau prin HTTP și șterge rândul după confirmare. Dacă livrarea eșuează, rândul rămâne pentru o nouă încercare.
+
+| Coloană | Tip SQL | Ce reprezintă |
+| --- | --- | --- |
+| `id` | `BIGINT` | Cheia primară generată automat |
+| `destination` | `VARCHAR(24)` | `KAFKA_SIGNUP` sau `HTTP_CONTACT` |
+| `event_key` | `VARCHAR(64)` | ID-ul utilizatorului sau UUID-ul evenimentului de contact |
+| `payload` | `TEXT` | Mesajul JSON; nu conține parola |
+| `created_at` | `TIMESTAMPTZ` | Când a fost creat rândul |
+| `next_attempt_at` | `TIMESTAMPTZ` | Când se poate încerca livrarea din nou |
+| `attempts` | `INTEGER` | Numărul încercărilor eșuate |
+
+Acest tabel este temporar: un rând livrat dispare. Istoricul final se află în `activity.signup_events` sau `activity.contact_events`. Relația cu `users` și `contacts` este prin ID-uri în JSON, fără cheie externă SQL; astfel rămâne valid și evenimentul `DELETED` după ștergerea contactului.
 
 ## Diagrama relațiilor
 
@@ -60,6 +77,16 @@ erDiagram
         bigint created_by_user_id FK "referinta la users.id"
         timestamptz created_at "crearea contactului"
         timestamptz updated_at "ultima modificare"
+    }
+
+    event_outbox {
+        bigint id PK "generat automat"
+        varchar destination "KAFKA_SIGNUP sau HTTP_CONTACT"
+        varchar event_key "ID utilizator sau UUID eveniment"
+        text payload "mesaj JSON"
+        timestamptz created_at "momentul salvarii"
+        timestamptz next_attempt_at "urmatoarea incercare"
+        int attempts "incercari esuate"
     }
 
     signup_events {
@@ -194,7 +221,7 @@ Structura este furnizată de Flyway, nu o definim manual. Coloanele verificate �
 | `execution_time` | `INTEGER` | Durata execuției în milisecunde |
 | `success` | `BOOLEAN` | Dacă migrarea a reușit |
 
-Migrațiile backendului sunt `V1__create_users_and_contacts.sql` și `V2__add_user_role.sql`. V2 modifică tabelul existent fără să rescrie V1. Microserviciul are propria V1, `V1__create_signup_events.sql`, și V2, `V2__create_contact_events.sql`, urmărite în schema `activity`. Numerotarea pornește separat pentru fiecare serviciu. Flyway verifică checksumul fiecărui fișier și semnalează schimbările ulterioare.
+Migrațiile backendului sunt `V1__create_users_and_contacts.sql`, `V2__add_user_role.sql` și `V3__create_event_outbox.sql`. Migrațiile noi modifică schema fără să rescrie fișierele vechi. Microserviciul are propria V1, `V1__create_signup_events.sql`, și V2, `V2__create_contact_events.sql`, urmărite în schema `activity`. Numerotarea pornește separat pentru fiecare serviciu. Flyway verifică checksumul fiecărui fișier și semnalează schimbările ulterioare.
 
 ## Datele microserviciului
 
@@ -247,7 +274,7 @@ Portul este publicat numai pe `127.0.0.1:5432`, pentru acces local. `netex` este
 5. După mesajul de succes, apasă **Finish**.
 6. În navigator, extinde conexiunea, apoi **Schemas → public → Tables** și **Schemas → activity → Tables**. În funcție de configurarea navigatorului, poate apărea și nivelul **Databases → netex**.
 
-După pornirea ambelor aplicații, dă **Refresh** pe conexiune sau pe **Schemas**. În `public` vezi `users`, `contacts` și `flyway_schema_history`; în `activity` vezi `signup_events`, `contact_events` și `flyway_schema_history`. Pentru coloane, deschide tabelul și secțiunea **Columns**; pentru rânduri, folosește **View Data → All Rows**. După o înregistrare nouă, rândul utilizatorului este în `public.users`, iar procesarea Kafka apare în `activity.signup_events`. După schimbarea unui contact, evenimentul HTTP apare în `activity.contact_events`.
+După pornirea ambelor aplicații, dă **Refresh** pe conexiune sau pe **Schemas**. În `public` vezi `users`, `contacts`, `event_outbox` și `flyway_schema_history`; în `activity` vezi `signup_events`, `contact_events` și `flyway_schema_history`. Pentru coloane, deschide tabelul și secțiunea **Columns**; pentru rânduri, folosește **View Data → All Rows**. După o înregistrare nouă, rândul utilizatorului este în `public.users`, iar procesarea Kafka apare în `activity.signup_events`. După schimbarea unui contact, evenimentul HTTP apare în `activity.contact_events`. `event_outbox` poate fi gol când verifici: rândurile confirmate se șterg.
 
 O eroare de conexiune refuzată indică de obicei un container oprit sau un port greșit. O eroare de autentificare cere verificarea utilizatorului și parolei. Schimbarea parolei în `.env` după inițializarea volumului nu schimbă automat parola din PostgreSQL.
 
@@ -271,11 +298,11 @@ După pornirea PostgreSQL, din directorul `backend` rulează în PowerShell:
 
 Valorile folosite sunt `POSTGRES_HOST` (implicit localhost), `POSTGRES_PORT` (5432), `POSTGRES_DB` (netex), `POSTGRES_USER` (netex) și `POSTGRES_PASSWORD` (fără parolă implicită). Modificarea hostului sau portului backendului nu schimbă automat configurația Compose. În Docker, hostul va fi numele serviciului `postgres`.
 
-La prima pornire vezi în log aplicarea V1 și V2. Dacă V1 exista deja, Flyway aplică doar V2. La următoarele porniri, validează fișierele și raportează că schema este actualizată. Backendul nu poate porni complet dacă baza nu este disponibilă sau autentificarea eșuează. `/api/health` include verificarea conexiunii SQL, dar ascunde detaliile interne.
+La prima pornire vezi în log aplicarea V1, V2 și V3. Dacă V1 și V2 există deja, Flyway aplică doar V3. La următoarele porniri, validează fișierele și raportează că schema este actualizată. Backendul nu poate porni complet dacă baza nu este disponibilă sau autentificarea eșuează. `/api/health` include verificarea conexiunii SQL, dar ascunde detaliile interne.
 
 ## Verificări efectuate
 
-La implementarea inițială, `mvn verify` a trecut cu 20 de teste de backend. Testcontainers pornește PostgreSQL 17.11 temporar, aplică V1 și V2 pe o bază goală și îl închide după teste. Nu folosește baza `netex` și nu are nevoie de parola ei. Setul curent de teste verifică migrările, regulile SQL, API-ul public, autentificarea cu sesiune și rolurile. Protecția CSRF a fost scoasă ulterior pentru varianta de bază și poate fi adăugată pe un branch separat.
+Testcontainers pornește PostgreSQL 17.11 temporar, aplică V1, V2 și V3 pe o bază goală și îl închide după teste. Nu folosește baza `netex` și nu are nevoie de parola ei. Testele curente verifică migrările, regulile SQL, API-ul, autentificarea cu sesiune și CSRF, precum și relivrarea evenimentelor.
 
 Backendul cu profilul `local` a aplicat V2 peste V1 în `netex`; logul a confirmat schema la versiunea 2. Verificarea inițială, înainte de simplificarea autentificării, a confirmat health `UP`, lista publică goală și răspunsul 401 pentru `/api/auth/me` fără login. PostgreSQL rămâne disponibil pentru inspecție în DBeaver. Verificarea integrată a variantei fără CSRF este încă de efectuat când Docker este disponibil.
 

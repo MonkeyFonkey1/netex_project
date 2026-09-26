@@ -7,6 +7,8 @@ import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -49,11 +51,17 @@ public class ContactService {
         return findExisting(id);
     }
 
+    @Transactional
     public void delete(long id, AppUser user) {
         requireManager(id, user);
         Contact deleted = repository.delete(id, user.id(), user.isAdmin())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contact not found"));
-        pictureStorage.deleteIfExists(deleted.picturePath());
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                pictureStorage.deleteIfExists(deleted.picturePath());
+            }
+        });
     }
 
     private Contact findExisting(long id) {

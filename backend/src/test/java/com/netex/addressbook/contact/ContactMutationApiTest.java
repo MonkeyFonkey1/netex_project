@@ -1,7 +1,7 @@
 package com.netex.addressbook.contact;
 
 import com.netex.addressbook.PostgresTestConfiguration;
-import com.netex.addressbook.activity.ContactActivityClient;
+import com.netex.addressbook.activity.ContactActivityPublisher;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,7 +27,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.outbox.enabled=false")
 @AutoConfigureMockMvc
 @Import(PostgresTestConfiguration.class)
 class ContactMutationApiTest {
@@ -34,16 +35,16 @@ class ContactMutationApiTest {
     @Autowired MockMvc mockMvc;
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder passwordEncoder;
-    @MockitoBean ContactActivityClient activity;
+    @MockitoBean ContactActivityPublisher activity;
 
     @Test
     void anonymousVisitorCannotCreateUpdateOrDelete() throws Exception {
         String body = "{\"name\":\"Maria\",\"address\":\"Strada 1\"}";
-        mockMvc.perform(post("/api/contacts").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/contacts").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(put("/api/contacts/1").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(put("/api/contacts/1").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(delete("/api/contacts/1"))
+        mockMvc.perform(delete("/api/contacts/1").with(csrf()))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(activity);
     }
@@ -56,7 +57,7 @@ class ContactMutationApiTest {
         String body = "{\"name\":\"  " + uniqueName + "  \",\"address\":\"  Strada 1  \",\"createdByUserId\":"
                 + other.id() + "}";
 
-        MvcResult created = mockMvc.perform(post("/api/contacts").session(author.session())
+        MvcResult created = mockMvc.perform(post("/api/contacts").with(csrf()).session(author.session())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value(uniqueName))
@@ -83,11 +84,11 @@ class ContactMutationApiTest {
     @Test
     void invalidContactDataIsRejected() throws Exception {
         TestAccount author = account();
-        mockMvc.perform(post("/api/contacts").session(author.session())
+        mockMvc.perform(post("/api/contacts").with(csrf()).session(author.session())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"   \",\"address\":\"Strada 1\"}"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/contacts").session(author.session())
+        mockMvc.perform(post("/api/contacts").with(csrf()).session(author.session())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Maria\",\"address\":\"" + "a".repeat(1001) + "\"}"))
                 .andExpect(status().isBadRequest());
@@ -103,13 +104,13 @@ class ContactMutationApiTest {
         long id = contact(author.id(), "Maria", "Strada 1", "saved-photo.jpg");
         String body = "{\"name\":\"  Maria Noua  \",\"address\":\"  Strada 2  \"}";
 
-        mockMvc.perform(put("/api/contacts/{id}", id).session(other.session())
+        mockMvc.perform(put("/api/contacts/{id}", id).with(csrf()).session(other.session())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
         assertThat(jdbc.queryForObject("SELECT name FROM contacts WHERE id = ?", String.class, id))
                 .isEqualTo("Maria");
 
-        mockMvc.perform(put("/api/contacts/{id}", id).session(author.session())
+        mockMvc.perform(put("/api/contacts/{id}", id).with(csrf()).session(author.session())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Maria Noua"))
@@ -118,7 +119,7 @@ class ContactMutationApiTest {
         assertThat(jdbc.queryForObject("SELECT picture_path FROM contacts WHERE id = ?", String.class, id))
                 .isEqualTo("saved-photo.jpg");
         verify(activity).updated(id, author.id());
-        mockMvc.perform(put("/api/contacts/{id}", -1).session(author.session())
+        mockMvc.perform(put("/api/contacts/{id}", -1).with(csrf()).session(author.session())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isNotFound());
     }
@@ -129,15 +130,15 @@ class ContactMutationApiTest {
         TestAccount other = account();
         long id = contact(author.id(), "Maria", "Strada 1", null);
 
-        mockMvc.perform(delete("/api/contacts/{id}", id).session(other.session()))
+        mockMvc.perform(delete("/api/contacts/{id}", id).with(csrf()).session(other.session()))
                 .andExpect(status().isForbidden());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM contacts WHERE id = ?", Integer.class, id))
                 .isEqualTo(1);
 
-        mockMvc.perform(delete("/api/contacts/{id}", id).session(author.session()))
+        mockMvc.perform(delete("/api/contacts/{id}", id).with(csrf()).session(author.session()))
                 .andExpect(status().isNoContent());
         verify(activity).deleted(id, author.id());
-        mockMvc.perform(delete("/api/contacts/{id}", id).session(author.session()))
+        mockMvc.perform(delete("/api/contacts/{id}", id).with(csrf()).session(author.session()))
                 .andExpect(status().isNotFound());
     }
 
@@ -148,7 +149,7 @@ class ContactMutationApiTest {
         long authoredId = contact(author.id(), "Maria", "Strada 1", null);
         String body = "{\"name\":\"Admin Contact\",\"address\":\"Strada 2\"}";
 
-        MvcResult created = mockMvc.perform(post("/api/contacts").session(admin.session())
+        MvcResult created = mockMvc.perform(post("/api/contacts").with(csrf()).session(admin.session())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.canManage").value(true))
@@ -162,13 +163,13 @@ class ContactMutationApiTest {
         mockMvc.perform(get("/api/contacts/{id}", authoredId).session(admin.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canManage").value(true));
-        mockMvc.perform(put("/api/contacts/{id}", authoredId).session(admin.session())
+        mockMvc.perform(put("/api/contacts/{id}", authoredId).with(csrf()).session(admin.session())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Admin Contact"));
         verify(activity).updated(authoredId, admin.id());
 
-        mockMvc.perform(delete("/api/contacts/{id}", authoredId).session(admin.session()))
+        mockMvc.perform(delete("/api/contacts/{id}", authoredId).with(csrf()).session(admin.session()))
                 .andExpect(status().isNoContent());
         verify(activity).deleted(authoredId, admin.id());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM contacts WHERE id = ?",
@@ -183,7 +184,7 @@ class ContactMutationApiTest {
         String email = UUID.randomUUID() + "@example.com";
         long id = jdbc.queryForObject("INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?) RETURNING id",
                 Long.class, email, passwordEncoder.encode("strong-password"), role);
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/auth/login").with(csrf())
                         .param("email", email).param("password", "strong-password"))
                 .andExpect(status().isNoContent()).andReturn();
         return new TestAccount(id, (MockHttpSession) result.getRequest().getSession(false));

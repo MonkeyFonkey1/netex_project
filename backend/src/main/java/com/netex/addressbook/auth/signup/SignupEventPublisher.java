@@ -2,23 +2,20 @@ package com.netex.addressbook.auth.signup;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.netex.addressbook.activity.EventOutboxRepository;
 import java.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
 public class SignupEventPublisher {
 
-    private static final Logger log = LoggerFactory.getLogger(SignupEventPublisher.class);
     public static final String TOPIC = "user-signups";
 
-    private final KafkaTemplate<String, String> kafka;
+    private final EventOutboxRepository outbox;
     private final ObjectMapper json;
 
-    public SignupEventPublisher(KafkaTemplate<String, String> kafka, ObjectMapper json) {
-        this.kafka = kafka;
+    public SignupEventPublisher(EventOutboxRepository outbox, ObjectMapper json) {
+        this.outbox = outbox;
         this.json = json;
     }
 
@@ -30,16 +27,6 @@ public class SignupEventPublisher {
             throw new IllegalStateException("Could not serialize signup event", exception);
         }
 
-        // The account is already saved. Log delivery failures; do not falsely reject a created account.
-        try {
-            kafka.send(TOPIC, Long.toString(userId), message)
-                    .whenComplete((result, error) -> {
-                        if (error != null) {
-                            log.error("Could not publish signup event for user {}", userId, error);
-                        }
-                    });
-        } catch (RuntimeException exception) {
-            log.error("Could not publish signup event for user {}", userId, exception);
-        }
+        outbox.enqueue("KAFKA_SIGNUP", Long.toString(userId), message);
     }
 }

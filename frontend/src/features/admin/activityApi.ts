@@ -33,6 +33,7 @@ export async function getActivityHistory(signal: AbortSignal): Promise<ActivityH
 
   if (response.status === 503) throw new Error('Activity service is unavailable. Please try again.')
   if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) window.dispatchEvent(new Event('netex-session-expired'))
     throw new Error('Your session cannot access this page. Sign in as an admin.')
   }
   if (!response.ok) throw new Error(`Could not load activity: HTTP ${response.status}`)

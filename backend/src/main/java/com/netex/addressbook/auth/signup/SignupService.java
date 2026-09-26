@@ -8,6 +8,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -23,6 +24,7 @@ public class SignupService {
         this.eventPublisher = eventPublisher;
     }
 
+    @Transactional
     public AppUser signup(SignupRequest request) {
         String email = EmailAddress.normalize(request.email());
         if (email.isEmpty() || email.length() > 254 || !email.contains("@")) {

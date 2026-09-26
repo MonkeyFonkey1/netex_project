@@ -12,7 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {
         "ADMIN_EMAIL=  Admin@Test.Example  ",
-        "ADMIN_PASSWORD=test-admin-password"
+        "ADMIN_PASSWORD=test-admin-password",
+        "app.outbox.enabled=false"
 })
 @Import(PostgresTestConfiguration.class)
 class AdminAccountInitializerTest {

@@ -35,12 +35,15 @@ export function contactsExportUrl(name: string): string {
 async function sendContact(path: string, options: RequestInit): Promise<Response> {
   let response: Response
   try {
-    response = await fetch(path, { credentials: 'same-origin', ...options })
+    response = await csrfFetch(path, options)
   } catch {
     throw new Error('Cannot reach the server. Please try again.')
   }
 
-  if (response.status === 401) throw new Error('Your session has ended. Sign in again.')
+  if (response.status === 401) {
+    window.dispatchEvent(new Event('netex-session-expired'))
+    throw new Error('Your session has ended. Sign in again.')
+  }
   if (response.status === 403) throw new Error('Only the author or an admin can change this contact.')
   if (response.status === 404) throw new Error('This contact no longer exists. Refresh the list.')
   if (response.status === 400) throw new Error('Check the fields and use a valid JPEG or PNG picture.')
@@ -81,3 +84,4 @@ export async function uploadContactPicture(id: number, picture: File): Promise<v
 export async function removeContactPicture(id: number): Promise<void> {
   await sendContact(`/api/contacts/${id}/picture`, { method: 'DELETE' })
 }
+import { csrfFetch } from '../auth/csrfFetch'

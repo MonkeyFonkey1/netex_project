@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.outbox.enabled=false")
 @AutoConfigureMockMvc
 @Import(PostgresTestConfiguration.class)
 class DatabaseSchemaTest {
@@ -29,12 +29,15 @@ class DatabaseSchemaTest {
     void startupMigratesAnEmptyDatabaseAndDoesNotReapplyTheMigration() {
         assertThat(jdbc.queryForList(
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public'", String.class))
-                .contains("users", "contacts", "flyway_schema_history");
+                .contains("users", "contacts", "event_outbox", "flyway_schema_history");
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM flyway_schema_history WHERE version = '1' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM flyway_schema_history WHERE version = '2' AND success", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history WHERE version = '3' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
     }

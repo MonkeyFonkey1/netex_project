@@ -95,7 +95,7 @@ On macOS/Linux, use `cp .env.example .env` for the initial copy. The root `.env`
 
 Connect with DBeaver to `localhost:5432`, database `netex`, user `netex`, and the password from the root `.env`. If you customize the database or user, use those values instead. See [the visual database walkthrough](docs/database.md).
 
-The backend applies `V1__create_users_and_contacts.sql` and then `V2__add_user_role.sql` in schema `public`. The activity service applies its own `V1__create_signup_events.sql` and `V2__create_contact_events.sql` in schema `activity`. Refresh DBeaver after starting both services to see the separate tables and Flyway histories. There are no demo users or contacts. The database username is a PostgreSQL account, separate from address book user accounts.
+The backend applies `V1__create_users_and_contacts.sql`, `V2__add_user_role.sql` and `V3__create_event_outbox.sql` in schema `public`. The activity service applies its own `V1__create_signup_events.sql` and `V2__create_contact_events.sql` in schema `activity`. Refresh DBeaver after starting both services to see the separate tables and Flyway histories. There are no demo users or contacts. The database username is a PostgreSQL account, separate from address book user accounts.
 
 To create an optional admin account, set both `ADMIN_EMAIL` and `ADMIN_PASSWORD` in the ignored root `.env` before starting the backend. The password needs 8–72 UTF-8 bytes. The backend creates the admin only if that email does not exist. It will not promote an existing regular user or reset an existing admin password. The local profile reads these values from `.env`; Compose passes them to the Docker backend too. Restart the backend after setting them. Log in at `/login`; the **Activity** link appears only for an admin and opens `/admin/activity`. Never commit real credentials.
 
@@ -143,17 +143,21 @@ These commands use PowerShell and the backend on port 8080. Each request reuses 
 
 ```powershell
 $browserSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$csrf = Invoke-RestMethod http://localhost:8080/api/auth/csrf -WebSession $browserSession
+$headers = @{ 'X-CSRF-TOKEN' = $csrf.token }
 $body = @{ email = 'ana@example.com'; password = 'a-long-password' } | ConvertTo-Json
-Invoke-RestMethod http://localhost:8080/api/auth/signup -Method Post -WebSession $browserSession -ContentType 'application/json' -Body $body
+Invoke-RestMethod http://localhost:8080/api/auth/signup -Method Post -WebSession $browserSession -Headers $headers -ContentType 'application/json' -Body $body
 $loginForm = @{ email = 'ana@example.com'; password = 'a-long-password' }
-(Invoke-WebRequest http://localhost:8080/api/auth/login -Method Post -WebSession $browserSession -ContentType 'application/x-www-form-urlencoded' -Body $loginForm).StatusCode
+(Invoke-WebRequest http://localhost:8080/api/auth/login -Method Post -WebSession $browserSession -Headers $headers -ContentType 'application/x-www-form-urlencoded' -Body $loginForm).StatusCode
 Invoke-RestMethod http://localhost:8080/api/auth/me -WebSession $browserSession
-Invoke-RestMethod http://localhost:8080/api/auth/logout -Method Post -WebSession $browserSession
+$csrf = Invoke-RestMethod http://localhost:8080/api/auth/csrf -WebSession $browserSession
+$headers = @{ 'X-CSRF-TOKEN' = $csrf.token }
+Invoke-RestMethod http://localhost:8080/api/auth/logout -Method Post -WebSession $browserSession -Headers $headers
 ```
 
 Signup creates only a `USER` and does not log in automatically. After saving the account, the backend publishes a JSON message to Kafka topic `user-signups` with `userId`, `email` and `signedUpAt`; it never sends the password or hash. Login is handled by Spring Security, accepts form fields and returns HTTP 204 with no body; use `/api/auth/me` to read the account. The backend hashes passwords using BCrypt and returns only `id`, `email` and `role` from signup and `/me`. See [the API contract](docs/API.md) for validation and status codes.
 
-For this learning-focused interview baseline, CSRF protection is disabled. This keeps signup, login and logout requests free of a separate token exchange, but cookie-based authenticated write requests can be exposed to cross-site request forgery. Do not treat this configuration as production-ready. Revisit CSRF protection on a separate branch after the required application works end to end.
+Spring Security checks a CSRF token on requests that modify data. The React frontend fetches it automatically from `GET /api/auth/csrf`, sends it in `X-CSRF-TOKEN`, and fetches a fresh token after login changes the session. A script or API client must do the same, as shown above. The session cookie still identifies the logged-in user; the CSRF token serves a different purpose.
 
 ### Terminal 2: activity service
 
@@ -175,9 +179,7 @@ Health endpoint: <http://localhost:8081/internal/health>
 
 The local profile reads the root `.env`, just like the main API. Flyway creates the separate `activity` schema, `signup_events` and `contact_events` tables. The Kafka consumer records new registrations in `signup_events`; the HTTP endpoint records contact changes in `contact_events`. The internal `GET /internal/activity` returns the latest 100 rows of each type to the main API's admin endpoint. The React page shows these rows after admin login, with a **Refresh** button. You can also inspect them directly in DBeaver under **Schemas → activity → Tables**. If `activity` is not visible, refresh the connection or enable it in DBeaver's schema selection.
 
-This initial Kafka delivery is **best effort**. If the broker is unavailable during signup, the user account still exists and the API logs the delivery failure; there is no durable retry queue yet. A transactional outbox is a possible later reliability improvement, outside this small interview baseline.
-
-Contact activity delivery is also best effort. The main API sends `POST /internal/contact-events` after the contact database change succeeds. If the activity service is unavailable, the contact change remains successful and the API logs the failure; the event is not retried. A picture upload or removal records an `UPDATED` event when it changes the contact. The frontend never calls the activity service directly.
+Signup and contact changes save an event in `public.event_outbox` in the same SQL transaction as the change. A small backend worker sends pending signup events to Kafka and contact events to `POST /internal/contact-events`, then removes each row after acknowledgement. If Kafka or the activity service is unavailable, the row remains in SQL and is retried after five seconds, including after a backend restart. The microservice ignores repeated signup user IDs and contact event UUIDs, so a retry after an uncertain acknowledgement does not add duplicate history rows. Delivery can be delayed while a dependency is down. A picture upload or removal queues an `UPDATED` event when it changes the contact. The frontend never calls the activity service directly.
 
 ### Terminal 3: frontend
 
@@ -246,7 +248,7 @@ The build includes TypeScript checking. `npm run typecheck` runs that check sepa
 
 The Java integration tests verify the public health path, contact reads, CSV formatting and filtering, contact writes, the author-or-admin rule, photo upload/replace/remove and that internal management information is not exposed. Spring Boot Actuator supplies the health endpoints; the contact endpoints use controllers, services and a repository.
 
-The Java tests use Testcontainers with PostgreSQL 17.11 on dynamically assigned ports. They need Docker, but do not require the root `.env`, a local profile, the development database or a running Kafka broker. The backend tests verify its V1/V2 migrations, contacts, auth, photos, CSV, Kafka signup publication, contact HTTP calls and the admin-only activity response. The microservice tests verify its V1/V2 migrations, deduplicated signup messages, contact events and history reads. Test data stays in temporary PostgreSQL containers, which are removed after the test process ends.
+The Java tests use Testcontainers with PostgreSQL 17.11 on dynamically assigned ports. They need Docker, but do not require the root `.env`, a local profile, the development database or a running Kafka broker. The backend tests verify its V1/V2/V3 migrations, contacts, auth, photos, CSV, queued event delivery and retry, and the admin-only activity response. The microservice tests verify its V1/V2 migrations, deduplicated signup messages, contact events and history reads. Test data stays in temporary PostgreSQL containers, which are removed after the test process ends.
 
 With the complete Docker stack at port 3000, or the separately started applications at port 5173, check:
 
@@ -263,7 +265,7 @@ With the complete Docker stack at port 3000, or the separately started applicati
 
 ## Learning and next improvements
 
-The complete interview baseline can be started through Docker Compose as described above. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the implementation history and the learning plan. Potential improvements after the handoff include a separate CSRF protection branch and more reliable event delivery; neither is required for the current assignment.
+The complete interview application can be started through Docker Compose as described above. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the implementation history and the learning plan. Session recovery, CSV formula protection, durable event retry and CSRF protection are included in the current code.
 
 For the first learning checkpoint in 5A.1, use the [Romanian database and signup guide](output/pdf/pasul-1-baza-de-date-si-inregistrare.pdf). It follows the actual code at commit `44618e2`, includes a visual request flow and DBeaver exercise, and is meant to be studied in short sessions. The five learning checkpoints are recorded in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 

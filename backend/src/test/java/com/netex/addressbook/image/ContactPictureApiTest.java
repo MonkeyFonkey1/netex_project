@@ -1,7 +1,8 @@
 package com.netex.addressbook.image;
 
 import com.netex.addressbook.PostgresTestConfiguration;
-import com.netex.addressbook.activity.ContactActivityClient;
+import com.netex.addressbook.activity.ContactActivityPublisher;
+import com.netex.addressbook.auth.AppUser;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -26,9 +27,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -37,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.outbox.enabled=false")
 @AutoConfigureMockMvc
 @Import(PostgresTestConfiguration.class)
 @TestPropertySource(properties = "app.picture-directory=target/test-pictures")
@@ -46,7 +50,31 @@ class ContactPictureApiTest {
     @Autowired MockMvc mockMvc;
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder passwordEncoder;
-    @MockitoBean ContactActivityClient activity;
+    @Autowired ContactPictureService pictures;
+    @MockitoBean ContactActivityPublisher activity;
+
+    @Test
+    void failedEventSaveRollsBackPictureChangeAndRemovesTheNewFile() throws Exception {
+        TestAccount author = account();
+        AppUser user = new AppUser(author.id(), "author@example.com", "test-hash", "USER");
+        long id = contact(author.id());
+        pictures.replace(id, user, picture(png(Color.BLUE)));
+        String original = picturePath(id);
+        long filesBefore;
+        try (var files = Files.list(Path.of("target/test-pictures"))) {
+            filesBefore = files.count();
+        }
+
+        doThrow(new IllegalStateException("Outbox unavailable")).when(activity).updated(id, author.id());
+        assertThatThrownBy(() -> pictures.replace(id, user, picture(png(Color.RED))))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThat(picturePath(id)).isEqualTo(original);
+        assertThat(Files.exists(file(original))).isTrue();
+        try (var files = Files.list(Path.of("target/test-pictures"))) {
+            assertThat(files.count()).isEqualTo(filesBefore);
+        }
+    }
 
     @Test
     void authorCanUploadReplaceAndRemoveAPictureWhileEveryoneCanReadIt() throws Exception {
@@ -58,7 +86,7 @@ class ContactPictureApiTest {
         mockMvc.perform(get("/api/contacts/{id}/picture", id)).andExpect(status().isNotFound());
 
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
-                        .file(picture(first)).session(author.session()))
+                        .file(picture(first)).with(csrf()).session(author.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pictureUrl").isNotEmpty())
                 .andExpect(jsonPath("$.canManage").value(true));
@@ -75,14 +103,14 @@ class ContactPictureApiTest {
                 .andExpect(jsonPath("$.picturePath").doesNotExist());
 
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
-                        .file(picture(second)).session(author.session()))
+                        .file(picture(second)).with(csrf()).session(author.session()))
                 .andExpect(status().isOk());
         String secondName = picturePath(id);
         assertThat(secondName).isNotEqualTo(firstName);
         assertThat(Files.exists(file(firstName))).isFalse();
         assertThat(new PictureStorage("target/test-pictures").read(secondName)).isEqualTo(second);
 
-        mockMvc.perform(delete("/api/contacts/{id}/picture", id).session(author.session()))
+        mockMvc.perform(delete("/api/contacts/{id}/picture", id).with(csrf()).session(author.session()))
                 .andExpect(status().isNoContent());
         assertThat(picturePath(id)).isNull();
         assertThat(Files.exists(file(secondName))).isFalse();
@@ -97,19 +125,19 @@ class ContactPictureApiTest {
         long id = contact(author.id());
         byte[] bytes = png(Color.GREEN);
 
-        mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id).file(picture(bytes)))
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id).file(picture(bytes)).with(csrf()))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
-                        .file(picture(bytes)).session(other.session()))
+                        .file(picture(bytes)).with(csrf()).session(other.session()))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(delete("/api/contacts/{id}/picture", id).session(other.session()))
+        mockMvc.perform(delete("/api/contacts/{id}/picture", id).with(csrf()).session(other.session()))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
-                        .file(picture(bytes)).session(author.session()))
+                        .file(picture(bytes)).with(csrf()).session(author.session()))
                 .andExpect(status().isOk());
         String filename = picturePath(id);
-        mockMvc.perform(delete("/api/contacts/{id}", id).session(author.session()))
+        mockMvc.perform(delete("/api/contacts/{id}", id).with(csrf()).session(author.session()))
                 .andExpect(status().isNoContent());
         verify(activity).updated(id, author.id());
         verify(activity).deleted(id, author.id());
@@ -123,13 +151,13 @@ class ContactPictureApiTest {
         long id = contact(author.id());
 
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
-                        .file(picture(png(Color.ORANGE))).session(admin.session()))
+                        .file(picture(png(Color.ORANGE))).with(csrf()).session(admin.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canManage").value(true));
         String filename = picturePath(id);
         assertThat(Files.exists(file(filename))).isTrue();
 
-        mockMvc.perform(delete("/api/contacts/{id}/picture", id).session(admin.session()))
+        mockMvc.perform(delete("/api/contacts/{id}/picture", id).with(csrf()).session(admin.session()))
                 .andExpect(status().isNoContent());
         assertThat(picturePath(id)).isNull();
         assertThat(Files.exists(file(filename))).isFalse();
@@ -143,13 +171,15 @@ class ContactPictureApiTest {
 
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
                         .file(new MockMultipartFile("picture", "fake.png", "image/png", "not a picture".getBytes()))
+                        .with(csrf())
                         .session(author.session()))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
-                        .file(picture(Arrays.copyOf(png(Color.BLUE), 40))).session(author.session()))
+                        .file(picture(Arrays.copyOf(png(Color.BLUE), 40))).with(csrf()).session(author.session()))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(multipart(HttpMethod.PUT, "/api/contacts/{id}/picture", id)
                         .file(new MockMultipartFile("picture", "huge.png", "image/png", new byte[5 * 1024 * 1024 + 1]))
+                        .with(csrf())
                         .session(author.session()))
                 .andExpect(status().isPayloadTooLarge());
         assertThat(picturePath(id)).isNull();
@@ -164,7 +194,7 @@ class ContactPictureApiTest {
         String email = UUID.randomUUID() + "@example.com";
         long id = jdbc.queryForObject("INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?) RETURNING id",
                 Long.class, email, passwordEncoder.encode("strong-password"), role);
-        MvcResult login = mockMvc.perform(post("/api/auth/login")
+        MvcResult login = mockMvc.perform(post("/api/auth/login").with(csrf())
                         .param("email", email).param("password", "strong-password"))
                 .andExpect(status().isNoContent()).andReturn();
         return new TestAccount(id, (MockHttpSession) login.getRequest().getSession(false));

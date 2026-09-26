@@ -6,7 +6,7 @@ export type AuthUser = {
 
 async function send(path: string, options?: RequestInit): Promise<Response> {
   try {
-    return await fetch(path, { credentials: 'same-origin', ...options })
+    return await (options?.method ? csrfFetch(path, options) : fetch(path, { credentials: 'same-origin' }))
   } catch {
     throw new Error('Cannot reach the server. Please try again.')
   }
@@ -41,9 +41,12 @@ export async function signIn(email: string, password: string): Promise<void> {
 
   if (response.status === 401) throw new Error('Incorrect email or password.')
   if (!response.ok) throw new Error(`Could not sign in: HTTP ${response.status}`)
+  clearCsrfToken()
 }
 
 export async function signOut(): Promise<void> {
   const response = await send('/api/auth/logout', { method: 'POST' })
   if (!response.ok) throw new Error(`Could not sign out: HTTP ${response.status}`)
+  clearCsrfToken()
 }
+import { clearCsrfToken, csrfFetch } from './csrfFetch'

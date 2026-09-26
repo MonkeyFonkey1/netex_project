@@ -23,6 +23,15 @@ public class ContactCsvService {
         if (value == null) {
             return "";
         }
+        // A quoted CSV cell can still be executed as a formula by spreadsheet software.
+        int firstText = 0;
+        while (firstText < value.length() && Character.isWhitespace(value.charAt(firstText))) {
+            firstText++;
+        }
+        if ((firstText < value.length() && "=+-@".indexOf(value.charAt(firstText)) >= 0)
+                || (!value.isEmpty() && "\t\r\n".indexOf(value.charAt(0)) >= 0)) {
+            value = "'" + value;
+        }
         return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 }
