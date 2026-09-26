@@ -10,6 +10,8 @@ Diagrama există și ca fișiere independente: [imagine PNG](database.png), [ima
 - [Diagrama relațiilor](#diagrama-relațiilor)
 - [Tabelul users](#tabelul-users)
 - [Tabelul contacts](#tabelul-contacts)
+- [Tabelul activity.signup_events](#tabelul-activitysignup_events)
+- [Tabelul activity.contact_events](#tabelul-activitycontact_events)
 - [Exemplu de legătură între rânduri](#exemplu-de-legătură-între-rânduri)
 - [Istoricul Flyway](#istoricul-flyway)
 - [Datele microserviciului](#datele-microserviciului)
@@ -17,9 +19,9 @@ Diagrama există și ca fișiere independente: [imagine PNG](database.png), [ima
 
 ## Stadiu
 
-`compose.yaml` pornește PostgreSQL 17.11 cu volum persistent. Backendul se conectează prin Spring JDBC, iar Flyway aplică V1 și V2 la pornire. V2 adaugă rolul contului. În baza locală `netex` există `users`, `contacts` și `flyway_schema_history`. Crearea de contacte rămâne pentru pasul 5B.
+`compose.yaml` pornește aplicația completă: PostgreSQL 17.11, Kafka, backendul, microserviciul și frontendul. Volumele păstrează datele PostgreSQL, Kafka și fotografiile după repornire. Backendul se conectează prin Spring JDBC, iar Flyway aplică V1 și V2 în schema `public`. Microserviciul aplică propriile migrări V1 și V2 în schema `activity`. În baza locală `netex` există tabelele aplicației și câte un istoric Flyway pentru fiecare schemă.
 
-Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql) și [V2__add_user_role.sql](../backend/src/main/resources/db/migration/V2__add_user_role.sql). Documentația de mai jos descrie schema obținută după ambele migrări. Înregistrarea și autentificarea backend sunt implementate; operațiile de modificare a contactelor și uploadul urmează.
+Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src/main/resources/db/migration/V1__create_users_and_contacts.sql), [V2__add_user_role.sql](../backend/src/main/resources/db/migration/V2__add_user_role.sql) și [V1__create_signup_events.sql](../microservice/src/main/resources/db/migration/V1__create_signup_events.sql). Pasul 6 nu a schimbat schema: coloana `picture_path` exista deja în V1 din backend.
 
 ## Inventarul tabelelor
 
@@ -28,11 +30,13 @@ Definițiile executabile sunt [V1__create_users_and_contacts.sql](../backend/src
 | `contacts-api` | `netex.public.users` | Conturile persoanelor care se autentifică | Creat prin V1, rol adăugat prin V2 |
 | `contacts-api` | `netex.public.contacts` | Contactele din agenda publică | Creat prin V1 |
 | Flyway în `contacts-api` | `netex.public.flyway_schema_history` | Evidența modificărilor SQL aplicate | Creat automat de Flyway |
-| `activity-service` | Tabel SQL de istoric, schema încă nestabilită | Evenimentele procesate despre înregistrări și contacte | De proiectat la etapa microserviciului |
+| `activity-service` | `netex.activity.signup_events` | Înregistrările procesate din Kafka | Creat prin V1 a microserviciului |
+| `activity-service` | `netex.activity.contact_events` | Modificările contactelor primite prin HTTP | Creat prin V2 a microserviciului |
+| Flyway în `activity-service` | `netex.activity.flyway_schema_history` | Evidența migrărilor microserviciului | Creat automat de Flyway |
 
-`netex` este baza de date. `public` este schema, adică un spațiu de organizare a tabelelor în acea bază. `users` și `contacts` sunt numele tabelelor.
+`netex` este baza de date. `public` și `activity` sunt scheme, adică spații separate de organizare a tabelelor în aceeași bază fizică locală. `contacts-api` deține tabelele din `public`; `activity-service` deține tabelele din `activity`. Fiecare aplicație rulează propriile migrări Flyway. Separarea aceasta ține codul și datele logic distincte, deși configurația simplă de dezvoltare folosește același server și același cont SQL.
 
-Frontendul va folosi API-ul Java și nu va avea o conexiune directă la SQL. Fotografiile vor fi fișiere într-un volum; în SQL vom păstra referința la fișier. Kafka transportă evenimentele și nu este un tabel SQL.
+Frontendul folosește API-ul Java și nu are o conexiune directă la SQL. Fotografiile sunt fișiere în directorul local `uploads/` sau în volumul Docker `picture_data`; în SQL păstrăm numai numele generat de server. Kafka transportă evenimentele și nu este un tabel SQL.
 
 ## Diagrama relațiilor
 
@@ -52,10 +56,26 @@ erDiagram
         bigint id PK "generat automat"
         varchar name "maximum 255 caractere"
         text address "maximum 1000 caractere prin CHECK"
-        varchar picture_path "255 caractere, permite NULL temporar"
+        varchar picture_path "255 caractere, NULL fara fotografie"
         bigint created_by_user_id FK "referinta la users.id"
         timestamptz created_at "crearea contactului"
         timestamptz updated_at "ultima modificare"
+    }
+
+    signup_events {
+        bigint user_id PK "ID primit prin Kafka; fara FK SQL"
+        varchar email "254 caractere"
+        timestamptz signed_up_at "momentul din mesaj"
+        timestamptz processed_at "momentul procesarii"
+    }
+
+    contact_events {
+        uuid event_id PK "ID unic al evenimentului HTTP"
+        bigint contact_id "ID-ul contactului; fara FK SQL"
+        bigint actor_user_id "ID-ul autorului; fara FK SQL"
+        varchar action "CREATED, UPDATED sau DELETED"
+        timestamptz occurred_at "momentul din mesaj"
+        timestamptz processed_at "momentul procesarii"
     }
 ```
 
@@ -93,18 +113,46 @@ Un rând reprezintă o persoană din agendă. Persoana din contact nu trebuie s�
 | `id` | `BIGINT` | Identificatorul contactului | Cheie primară, `GENERATED ALWAYS AS IDENTITY` |
 | `name` | `VARCHAR(255)` | Numele contactului | Obligatoriu; nu este unic, fiindcă două persoane pot avea același nume |
 | `address` | `TEXT` | Adresa contactului | Obligatorie, maximum 1000 de caractere prin `CHECK` |
-| `picture_path` | `VARCHAR(255)` | Numele/calea relativă a fotografiei | Permite `NULL` temporar; dacă este prezentă, nu poate fi goală. La upload va fi generată de server |
+| `picture_path` | `VARCHAR(255)` | Numele generat al fotografiei | Permite `NULL` când contactul nu are fotografie; dacă este prezentă, valoarea nu poate fi goală. Numele este generat de server |
 | `created_by_user_id` | `BIGINT` | Autorul contactului | Obligatoriu; cheie externă către `users.id`; backendul îl ia din sesiunea autentificată |
 | `created_at` | `TIMESTAMPTZ` | Momentul creării contactului | Obligatoriu; valoare implicită `CURRENT_TIMESTAMP` |
-| `updated_at` | `TIMESTAMPTZ` | Momentul ultimei modificări | Obligatoriu; valoare implicită `CURRENT_TIMESTAMP`; viitorul service Java îl va actualiza la editare |
+| `updated_at` | `TIMESTAMPTZ` | Momentul ultimei modificări | Obligatoriu; valoare implicită `CURRENT_TIMESTAMP`; repository-ul îl actualizează la editarea textului sau fotografiei |
 
-`TEXT` nu limitează adresa la nivel de tip, dar constrângerea `ck_contacts_address_valid` impune maximum 1000 de caractere și refuză un text gol sau format numai din spații. Numele are și el o verificare pentru text gol/spații. Validarea viitorului API va aplica limite compatibile. `updated_at` nu se modifică automat doar datorită numelui coloanei sau unui `DEFAULT CURRENT_TIMESTAMP`; actualizarea va fi responsabilitatea codului Java.
+`TEXT` nu limitează adresa la nivel de tip, dar constrângerea `ck_contacts_address_valid` impune maximum 1000 de caractere și refuză un text gol sau format numai din spații. Numele are și el o verificare pentru text gol/spații. API-ul aplică limite compatibile. `updated_at` nu se modifică automat doar datorită numelui coloanei sau unui `DEFAULT CURRENT_TIMESTAMP`; comenzile SQL de editare îl actualizează explicit.
 
-Cerința finală include fotografia contactului. V1 permite `NULL` pentru `picture_path` ca să putem construi API-ul înainte de upload. La pasul 6 vom adăuga validarea fotografiei și vom decide migrarea necesară pentru contactele fără fotografie. Această stare intermediară nu încheie cerința de upload.
+Cerința permite încărcarea fotografiei din browser. `picture_path` rămâne `NULL` dacă nu s-a ales o fotografie sau după eliminarea ei. La upload, backendul verifică fișierul și salvează în tabel numai numele generat; fișierul propriu-zis se află în directorul/volumul de fotografii. Nu a fost necesară o nouă migrare pentru pasul 6.
 
 Cheia externă `fk_contacts_author` are `ON DELETE RESTRICT`: PostgreSQL refuză ștergerea unui cont care încă are contacte. Nu există o funcție de ștergere a conturilor în API. Indexul `idx_contacts_author` ajută găsirea contactelor unui autor și verificarea cheii externe. Nu am adăugat un index obișnuit pe nume: acesta nu ar accelera automat o căutare de tip „conține textul”.
 
-La editare și ștergere, backendul va verifica dacă ID-ul utilizatorului autentificat coincide cu `created_by_user_id`. Cheia externă garantează existența autorului; **permisiunea de editare este verificată separat în backend**. Listarea și căutarea rămân publice.
+La editare și ștergere, backendul permite autorului (`created_by_user_id`) sau unui cont cu rolul `ADMIN`. Același lucru se aplică înlocuirii și eliminării fotografiei. Cheia externă garantează existența autorului; **permisiunea de editare este verificată separat în backend**. Listarea, căutarea și vizualizarea fotografiei rămân publice.
+
+## Tabelul activity.signup_events
+
+Un rând reprezintă un eveniment de înregistrare consumat din topicul Kafka `user-signups`. Tabelul aparține microserviciului, în schema `activity`.
+
+| Coloană | Tip SQL | Ce reprezintă | Reguli |
+| --- | --- | --- | --- |
+| `user_id` | `BIGINT` | ID-ul contului creat în `public.users` | Cheie primară; împiedică inserarea repetată a aceluiași eveniment |
+| `email` | `VARCHAR(254)` | Emailul normalizat al contului | Obligatoriu; nu poate fi gol/spații |
+| `signed_up_at` | `TIMESTAMPTZ` | Momentul generat de API în mesaj | Obligatoriu |
+| `processed_at` | `TIMESTAMPTZ` | Momentul salvării de către microserviciu | Obligatoriu; valoare implicită `CURRENT_TIMESTAMP` |
+
+`user_id` **nu este cheie externă SQL** către `public.users`: serviciile comunică prin eveniment, iar microserviciul nu citește direct tabelul conturilor. În cazul unei livrări repetate, `INSERT ... ON CONFLICT (user_id) DO NOTHING` păstrează un singur rând. Mesajul nu conține parola sau hashul ei.
+
+## Tabelul activity.contact_events
+
+Un rând reprezintă o modificare de contact trimisă de API-ul principal prin HTTP. Tabelul aparține microserviciului, în schema `activity`; migrarea sa este `V2__create_contact_events.sql`.
+
+| Coloană | Tip SQL | Ce reprezintă | Reguli |
+| --- | --- | --- | --- |
+| `event_id` | `UUID` | Identificatorul evenimentului | Cheie primară; împiedică inserarea repetată a aceluiași eveniment |
+| `contact_id` | `BIGINT` | ID-ul contactului modificat | Obligatoriu, pozitiv; fără FK SQL |
+| `actor_user_id` | `BIGINT` | ID-ul utilizatorului care a făcut modificarea | Obligatoriu, pozitiv; fără FK SQL |
+| `action` | `VARCHAR(7)` | Tipul modificării | `CREATED`, `UPDATED` sau `DELETED` |
+| `occurred_at` | `TIMESTAMPTZ` | Momentul trimis de API | Obligatoriu |
+| `processed_at` | `TIMESTAMPTZ` | Momentul salvării de către microserviciu | Obligatoriu; implicit `CURRENT_TIMESTAMP` |
+
+Nu există cheie externă către `public.contacts` sau `public.users`: microserviciul deține propriile date, iar istoricul trebuie să poată păstra și evenimentul `DELETED` după dispariția contactului. O retrimitere cu același `event_id` nu creează încă un rând (`ON CONFLICT DO NOTHING`). Poți vedea tabelul în DBeaver la **Schemas → activity → Tables → contact_events → View Data → All Rows**. După creare, editare și ștergere vei vedea același `contact_id` cu cele trei acțiuni. Înlocuirea sau eliminarea fotografiei produce `UPDATED`.
 
 ## Exemplu de legătură între rânduri
 
@@ -129,7 +177,7 @@ Ana a creat contactele 10 și 11. Mihai a creat contactul 12. Un contact cu `cre
 
 ## Istoricul Flyway
 
-Flyway a creat și administrează `flyway_schema_history`. Acest tabel nu are o relație de tip cheie externă cu `users` sau `contacts` și apare separat în diagrama vizuală.
+Flyway a creat și administrează două tabele independente: `public.flyway_schema_history` pentru backend și `activity.flyway_schema_history` pentru microserviciu. Nu au relații de tip cheie externă cu tabelele aplicației.
 
 Structura este furnizată de Flyway, nu o definim manual. Coloanele verificate în baza locală sunt:
 
@@ -146,15 +194,15 @@ Structura este furnizată de Flyway, nu o definim manual. Coloanele verificate �
 | `execution_time` | `INTEGER` | Durata execuției în milisecunde |
 | `success` | `BOOLEAN` | Dacă migrarea a reușit |
 
-Prima migrare este `V1__create_users_and_contacts.sql`; a doua este `V2__add_user_role.sql`. V2 modifică tabelul existent fără să rescrie V1. Flyway verifică checksumul fiecărui fișier și semnalează schimbările ulterioare. În DBeaver, istoricul arată versiunile `1` și `2`, ambele cu `success = true`, după pornirea backendului actualizat.
+Migrațiile backendului sunt `V1__create_users_and_contacts.sql` și `V2__add_user_role.sql`. V2 modifică tabelul existent fără să rescrie V1. Microserviciul are propria V1, `V1__create_signup_events.sql`, și V2, `V2__create_contact_events.sql`, urmărite în schema `activity`. Numerotarea pornește separat pentru fiecare serviciu. Flyway verifică checksumul fiecărui fișier și semnalează schimbările ulterioare.
 
 ## Datele microserviciului
 
-`activity-service` va procesa înregistrări primite prin Kafka și activități despre contacte primite prin HTTP. Am decis să păstrăm rezultatul procesării într-un tabel SQL de istoric deținut de microserviciu, pentru ca viitoarea pagină admin să poată afișa evenimentele. Schema, coloanele și migrarea acelui tabel se vor proiecta la implementarea Kafka; nu există momentan tabele ale microserviciului.
+`activity-service` procesează înregistrări primite prin Kafka și le salvează în `activity.signup_events`. Primește prin HTTP evenimente despre contacte și le salvează în `activity.contact_events`.
 
-Rolul `USER`/`ADMIN` există acum în V2 și în diagramă. Pagina și API-ul cu istoric admin încă nu sunt implementate; la acest pas backendul protejează prefixul `/api/admin/**`.
+Rolul `USER`/`ADMIN` există în V2 și în diagramă. Backendul protejează `/api/admin/activities` și citește prin HTTP ultimele 100 de rânduri din fiecare tabel de activitate; pagina React este vizibilă numai pentru ADMIN.
 
-La implementare vom completa aici numele bazei/schemei, fiecare tabel, coloanele și modul de identificare a evenimentelor. Legăturile prin ID-uri transmise în evenimente vor fi explicate separat de cheile externe SQL; nu presupunem o bază comună sau chei externe între serviciile independente.
+ID-urile din mesaje reprezintă legături logice cu utilizatori și contacte, fără relații FK între tabelele celor două servicii.
 
 ## Cum păstrăm documentul actualizat
 
@@ -197,9 +245,9 @@ Portul este publicat numai pe `127.0.0.1:5432`, pentru acces local. `netex` este
 
 4. Apasă **Test Connection**. La prima folosire, DBeaver poate cere descărcarea driverului PostgreSQL; acesta îi permite să comunice cu serverul.
 5. După mesajul de succes, apasă **Finish**.
-6. În navigator, extinde conexiunea, apoi **Schemas → public → Tables**. În funcție de configurarea navigatorului, poate apărea și nivelul **Databases → netex**.
+6. În navigator, extinde conexiunea, apoi **Schemas → public → Tables** și **Schemas → activity → Tables**. În funcție de configurarea navigatorului, poate apărea și nivelul **Databases → netex**.
 
-După pornirea backendului, dă **Refresh** pe conexiune sau pe **Tables**. Trebuie să vezi `users`, `contacts` și `flyway_schema_history`. Pentru coloane, deschide tabelul și secțiunea **Columns**; în `users` vei vedea acum și `role`. Pentru rânduri, folosește **View Data → All Rows**. `contacts` este gol până implementăm crearea lor, iar `users` rămâne gol până la prima înregistrare sau până configurezi contul admin. Istoricul Flyway are migrările V1 și V2.
+După pornirea ambelor aplicații, dă **Refresh** pe conexiune sau pe **Schemas**. În `public` vezi `users`, `contacts` și `flyway_schema_history`; în `activity` vezi `signup_events`, `contact_events` și `flyway_schema_history`. Pentru coloane, deschide tabelul și secțiunea **Columns**; pentru rânduri, folosește **View Data → All Rows**. După o înregistrare nouă, rândul utilizatorului este în `public.users`, iar procesarea Kafka apare în `activity.signup_events`. După schimbarea unui contact, evenimentul HTTP apare în `activity.contact_events`.
 
 O eroare de conexiune refuzată indică de obicei un container oprit sau un port greșit. O eroare de autentificare cere verificarea utilizatorului și parolei. Schimbarea parolei în `.env` după inițializarea volumului nu schimbă automat parola din PostgreSQL.
 
@@ -227,8 +275,8 @@ La prima pornire vezi în log aplicarea V1 și V2. Dacă V1 exista deja, Flyway 
 
 ## Verificări efectuate
 
-`mvn verify` a trecut cu 20 de teste de backend. Testcontainers pornește PostgreSQL 17.11 temporar, aplică V1 și V2 pe o bază goală și îl închide după teste. Nu folosește baza `netex` și nu are nevoie de parola ei. Testele verifică migrările, regulile SQL, API-ul public și autentificarea cu roluri și CSRF.
+La implementarea inițială, `mvn verify` a trecut cu 20 de teste de backend. Testcontainers pornește PostgreSQL 17.11 temporar, aplică V1 și V2 pe o bază goală și îl închide după teste. Nu folosește baza `netex` și nu are nevoie de parola ei. Setul curent de teste verifică migrările, regulile SQL, API-ul public, autentificarea cu sesiune și rolurile. Protecția CSRF a fost scoasă ulterior pentru varianta de bază și poate fi adăugată pe un branch separat.
 
-Backendul cu profilul `local` a aplicat V2 peste V1 în `netex`; logul a confirmat schema la versiunea 2. Pe un port temporar, health a răspuns `UP`, endpointul CSRF a returnat un token și cookie de sesiune, lista publică a rămas goală, iar `/api/auth/me` fără login a răspuns 401. PostgreSQL rămâne disponibil pentru inspecție în DBeaver.
+Backendul cu profilul `local` a aplicat V2 peste V1 în `netex`; logul a confirmat schema la versiunea 2. Verificarea inițială, înainte de simplificarea autentificării, a confirmat health `UP`, lista publică goală și răspunsul 401 pentru `/api/auth/me` fără login. PostgreSQL rămâne disponibil pentru inspecție în DBeaver. Verificarea integrată a variantei fără CSRF este încă de efectuat când Docker este disponibil.
 
-Următorul pas este explicarea backendului 5A.1 candidatului, apoi integrarea formularelor React în 5A.2. Operațiile de modificare a contactelor urmează la 5B.
+Pasul 9 este implementat: schema `activity` păstrează atât înregistrările Kafka, cât și modificările contactelor primite prin HTTP. Verificarea reală a observat `CREATED`, `UPDATED` și `DELETED` pentru același contact. Pasul 10 pornește toate cele cinci servicii prin Compose; explicația amplă a proiectului se va face apoi, conform planului.

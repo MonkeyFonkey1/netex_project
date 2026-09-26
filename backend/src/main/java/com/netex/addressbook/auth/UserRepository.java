@@ -23,8 +23,12 @@ public class UserRepository {
     }
 
     public long create(String email, String passwordHash, String role) {
-        return jdbc.queryForObject("""
+        Long id = jdbc.queryForObject("""
                 INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?) RETURNING id
                 """, Long.class, email, passwordHash, role);
+        if (id == null) {
+            throw new IllegalStateException("Insert did not return a user ID");
+        }
+        return id;
     }
 }

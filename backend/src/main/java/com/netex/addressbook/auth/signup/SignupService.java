@@ -15,10 +15,12 @@ public class SignupService {
 
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
+    private final SignupEventPublisher eventPublisher;
 
-    public SignupService(UserRepository users, PasswordEncoder passwordEncoder) {
+    public SignupService(UserRepository users, PasswordEncoder passwordEncoder, SignupEventPublisher eventPublisher) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
+        this.eventPublisher = eventPublisher;
     }
 
     public AppUser signup(SignupRequest request) {
@@ -33,6 +35,7 @@ public class SignupService {
         String hash = passwordEncoder.encode(request.password());
         try {
             long id = users.create(email, hash, "USER");
+            eventPublisher.publish(id, email);
             return new AppUser(id, email, hash, "USER");
         } catch (DuplicateKeyException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered", exception);

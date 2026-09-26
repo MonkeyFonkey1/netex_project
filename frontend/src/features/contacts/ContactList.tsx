@@ -8,9 +8,13 @@ type ContactListProps = {
   isSearching: boolean
   onRetry: () => void
   onClearSearch: () => void
+  signedIn: boolean
+  onEdit: (contact: Contact) => void
+  onDeleted: (name: string) => void
 }
 
-export function ContactList({ contacts, status, isSearching, onRetry, onClearSearch }: ContactListProps) {
+export function ContactList({ contacts, status, isSearching, onRetry, onClearSearch,
+  signedIn, onEdit, onDeleted }: ContactListProps) {
   return (
     <div className="list-panel" aria-live="polite">
       {status === 'loading' && (
@@ -48,7 +52,11 @@ export function ContactList({ contacts, status, isSearching, onRetry, onClearSea
 
       {status === 'success' && contacts.length > 0 && (
         <ul className="contact-list">
-          {contacts.map((contact) => <ContactCard key={contact.id} contact={contact} />)}
+          {contacts.map((contact) => (
+            <ContactCard key={contact.id} contact={contact}
+              canManage={signedIn && contact.canManage}
+              onEdit={onEdit} onDeleted={onDeleted} />
+          ))}
         </ul>
       )}
     </div>

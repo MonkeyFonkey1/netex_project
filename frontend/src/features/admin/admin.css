@@ -1,0 +1,67 @@
+.activity-page {
+  padding: 64px 0 88px;
+}
+
+.activity-heading,
+.activity-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.activity-heading { margin-bottom: 32px; }
+.activity-heading h1 {
+  margin: 12px 0;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  letter-spacing: -0.05em;
+}
+.activity-heading p:last-child { margin: 0; color: #65786b; }
+.activity-refresh,
+.activity-error button {
+  padding: 10px 16px;
+  border: 1px solid #1d6a51;
+  border-radius: 10px;
+  background: #1d6a51;
+  color: #fff;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.activity-refresh:disabled { opacity: .6; cursor: wait; }
+.activity-refresh:focus-visible,
+.activity-error button:focus-visible { outline: 3px solid #74bd95; outline-offset: 3px; }
+.activity-error {
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid #efc6c6;
+  border-radius: 14px;
+  background: #fff5f5;
+  color: #8b3030;
+}
+.activity-error p { margin-top: 0; }
+.activity-section {
+  overflow: hidden;
+  margin-top: 24px;
+  border: 1px solid #dfe8dc;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 35px rgba(31, 59, 41, .045);
+}
+.activity-section-heading { padding: 24px 28px 20px; }
+.activity-section-heading h2 { margin: 5px 0 0; font-size: 1.55rem; letter-spacing: -.03em; }
+.activity-section-heading > span { color: #65786b; font-size: .9rem; }
+.activity-empty { margin: 0; padding: 0 28px 28px; color: #65786b; }
+.activity-table-scroll { overflow-x: auto; }
+.activity-section table { width: 100%; min-width: 680px; border-collapse: collapse; text-align: left; }
+.activity-section th,
+.activity-section td { padding: 14px 18px; border-top: 1px solid #edf1ec; font-size: .9rem; }
+.activity-section th { color: #526e5b; background: #f6f9f5; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+.activity-section td { overflow-wrap: anywhere; }
+.activity-action { color: #1d6a51; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .activity-heading,
+  .activity-section-heading { align-items: start; flex-direction: column; }
+  .activity-page { padding-top: 42px; }
+}

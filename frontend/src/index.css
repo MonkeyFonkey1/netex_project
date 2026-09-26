@@ -9,7 +9,7 @@
 
 * { box-sizing: border-box; }
 body { min-width: 280px; margin: 0; }
-button, input { font: inherit; }
+button, input, textarea { font: inherit; }
 button { cursor: pointer; }
 
 .visually-hidden {

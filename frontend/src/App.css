@@ -76,6 +76,34 @@
   color: #fff;
 }
 
+.nav-button {
+  border: 0;
+  background: transparent;
+}
+
+.nav-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.signed-in-email,
+.session-status {
+  color: #62776a;
+  font-size: 0.88rem;
+}
+
+.signed-in-email {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-error {
+  margin: 12px 0 0;
+  color: #a12f30;
+}
+
 .brand:focus-visible,
 .nav-link:focus-visible,
 .page-link:focus-visible {

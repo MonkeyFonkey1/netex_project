@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
-import { AdminActivityPlaceholderPage } from '../features/admin/AdminActivityPlaceholderPage'
-import { AuthPlaceholderPage } from '../features/auth/AuthPlaceholderPage'
+import { AdminActivityPage } from '../features/admin/AdminActivityPage'
+import { LoginPage } from '../features/auth/LoginPage'
+import { SignupPage } from '../features/auth/SignupPage'
 import { ContactsPage } from '../features/contacts/ContactsPage'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -8,9 +9,9 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<ContactsPage />} />
-      <Route path="/login" element={<AuthPlaceholderPage mode="login" />} />
-      <Route path="/signup" element={<AuthPlaceholderPage mode="signup" />} />
-      <Route path="/admin/activity" element={<AdminActivityPlaceholderPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/admin/activity" element={<AdminActivityPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )

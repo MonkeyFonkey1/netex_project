@@ -45,4 +45,37 @@ public class ContactRepository {
                 .stream()
                 .findFirst();
     }
+
+    public long create(String name, String address, long authorId) {
+        Long id = jdbc.queryForObject("""
+                INSERT INTO contacts (name, address, created_by_user_id)
+                VALUES (?, ?, ?) RETURNING id
+                """, Long.class, name, address, authorId);
+        if (id == null) {
+            throw new IllegalStateException("Insert did not return a contact ID");
+        }
+        return id;
+    }
+
+    public int update(long id, long userId, boolean admin, String name, String address) {
+        return jdbc.update("""
+                UPDATE contacts SET name = ?, address = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND (created_by_user_id = ? OR ?)
+                """, name, address, id, userId, admin);
+    }
+
+    public int updatePicture(long id, long userId, boolean admin, String oldPath, String newPath) {
+        return jdbc.update("""
+                UPDATE contacts SET picture_path = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND (created_by_user_id = ? OR ?)
+                    AND picture_path IS NOT DISTINCT FROM ?
+                """, newPath, id, userId, admin, oldPath);
+    }
+
+    public Optional<Contact> delete(long id, long userId, boolean admin) {
+        return jdbc.query("""
+                DELETE FROM contacts WHERE id = ? AND (created_by_user_id = ? OR ?)
+                RETURNING id, name, address, picture_path, created_by_user_id, created_at, updated_at
+                """, CONTACT_MAPPER, id, userId, admin).stream().findFirst();
+    }
 }

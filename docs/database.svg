@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="910" viewBox="0 0 1440 910" role="img" aria-labelledby="title desc"><title id="title">Netex — diagrama bazei de date implementate</title><desc id="desc">Un utilizator poate crea zero sau mai multe contacte. contacts.created_by_user_id face referire la users.id. Schema backendului este implementată prin migrările V1 și V2.</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#137c73"/></marker></defs><rect width="1440" height="910" fill="#f5f8fa"/><g font-family="Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1190" viewBox="0 0 1440 1190" role="img" aria-labelledby="title desc"><title id="title">Netex — diagrama bazei de date implementate</title><desc id="desc">Un utilizator poate crea zero sau mai multe contacte. Schema activity stochează evenimentele de înregistrare din Kafka și evenimentele despre contacte primite prin HTTP, fără chei externe SQL către tabelele aplicației principale.</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#137c73"/></marker></defs><rect width="1440" height="1190" fill="#f5f8fa"/><g font-family="Arial, sans-serif">
 <text x="60" y="52" font-size="15" fill="#137c73" font-weight="bold">NETEX / STRUCTURA DATELOR</text>
-<text x="60" y="101" font-size="36" fill="#183642" font-weight="bold">Conturi și contacte</text>
-<text x="60" y="138" font-size="18" fill="#647784" font-weight="normal">SCHEMĂ BACKEND IMPLEMENTATĂ · migrările V1 și V2 · baza netex / schema public</text>
+<text x="60" y="101" font-size="36" fill="#183642" font-weight="bold">Conturi, contacte și activitate</text>
+<text x="60" y="138" font-size="18" fill="#647784" font-weight="normal">BAZA NETEX · schemele public și activity · migrări Flyway separate</text>
 <rect x="60" y="190" width="520" height="282" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
 <path d="M68 190 H572 Q580 190 580 198 V252 H60 V198 Q60 190 68 190" fill="#183642"/>
 <text x="78" y="218" font-size="23" fill="#ffffff" font-weight="bold">users</text>
@@ -61,12 +61,25 @@
 <rect x="60" y="622" width="640" height="124" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
 <text x="80" y="656" font-size="21" fill="#183642" font-weight="bold">flyway_schema_history</text>
 <text x="80" y="687" font-size="16" fill="#526976" font-weight="normal">Tabel tehnic, creat automat de Flyway.</text>
-<text x="80" y="716" font-size="16" fill="#526976" font-weight="normal">Ține evidența migrărilor SQL. Fără relație FK cu agenda.</text>
-<rect x="740" y="622" width="640" height="124" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
-<text x="760" y="656" font-size="21" fill="#183642" font-weight="bold">activity-service</text>
-<text x="760" y="687" font-size="16" fill="#526976" font-weight="normal">Tabelele și stocarea istoricului urmează să fie proiectate.</text>
-<text x="760" y="716" font-size="16" fill="#526976" font-weight="normal">Le vom adăuga în diagramă la implementarea serviciului.</text>
-<text x="60" y="803" font-size="17" fill="#254252" font-weight="normal">PK = identificator unic     UK = valoare unică     FK = referință către alt tabel</text>
-<text x="60" y="840" font-size="16" fill="#647784" font-weight="normal">picture_path permite NULL până la upload. Email unic prin lower(email). Adresa: maximum 1000 de caractere.</text>
-<text x="60" y="874" font-size="15" fill="#647784" font-weight="normal">Documentația coloanelor: docs/database.md · diagramă editabilă: docs/database.drawio</text>
+<text x="80" y="716" font-size="16" fill="#526976" font-weight="normal">Schema public; activity are propriul istoric Flyway.</text>
+<rect x="740" y="622" width="640" height="235" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
+<path d="M748 622 H1372 Q1380 622 1380 630 V666 H740 V630 Q740 622 748 622" fill="#183642"/>
+<text x="760" y="650" font-size="21" fill="#ffffff" font-weight="bold">activity.signup_events</text>
+<text x="760" y="689" font-size="16" fill="#183642" font-weight="bold">PK   user_id</text><text x="1200" y="689" font-size="15" fill="#647784">BIGINT</text>
+<text x="810" y="728" font-size="16" fill="#183642">email</text><text x="1200" y="728" font-size="15" fill="#647784">VARCHAR(254)</text>
+<text x="810" y="767" font-size="16" fill="#183642">signed_up_at</text><text x="1200" y="767" font-size="15" fill="#647784">TIMESTAMPTZ</text>
+<text x="810" y="806" font-size="16" fill="#183642">processed_at</text><text x="1200" y="806" font-size="15" fill="#647784">TIMESTAMPTZ</text>
+<text x="760" y="840" font-size="14" fill="#526976">Fără FK SQL; user_id vine din mesajul Kafka.</text>
+<rect x="60" y="770" width="640" height="280" rx="8" fill="#ffffff" stroke="#d5e0e6"/>
+<path d="M68 770 H692 Q700 770 700 778 V814 H60 V778 Q60 770 68 770" fill="#183642"/>
+<text x="80" y="799" font-size="21" fill="#ffffff" font-weight="bold">activity.contact_events</text>
+<text x="80" y="842" font-size="16" fill="#183642" font-weight="bold">PK   event_id</text><text x="520" y="842" font-size="15" fill="#647784">UUID</text>
+<text x="130" y="878" font-size="16" fill="#183642">contact_id</text><text x="520" y="878" font-size="15" fill="#647784">BIGINT</text>
+<text x="130" y="914" font-size="16" fill="#183642">actor_user_id</text><text x="520" y="914" font-size="15" fill="#647784">BIGINT</text>
+<text x="130" y="950" font-size="16" fill="#183642">action</text><text x="520" y="950" font-size="15" fill="#647784">VARCHAR(7)</text>
+<text x="130" y="986" font-size="16" fill="#183642">occurred_at</text><text x="520" y="986" font-size="15" fill="#647784">TIMESTAMPTZ</text>
+<text x="130" y="1022" font-size="16" fill="#183642">processed_at</text><text x="520" y="1022" font-size="15" fill="#647784">TIMESTAMPTZ</text>
+<text x="60" y="1090" font-size="17" fill="#254252" font-weight="normal">PK = identificator unic     UK = valoare unică     FK = referință către alt tabel</text>
+<text x="60" y="1127" font-size="16" fill="#647784" font-weight="normal">picture_path poate fi NULL. Evenimentele din activity nu conțin parole sau hashuri.</text>
+<text x="60" y="1161" font-size="15" fill="#647784" font-weight="normal">Documentația coloanelor: docs/database.md · diagramă editabilă: docs/database.drawio</text>
 </g></svg>
